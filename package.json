@@ -1,0 +1,25 @@
+{
+  "name": "chat-app-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter ./packages/* dev",
+    "build": "pnpm --filter ./packages/* build",
+    "dev:api": "pnpm --filter ./packages/api dev",
+    "dev:web": "pnpm --filter ./packages/web dev",
+    "build:api": "pnpm --filter ./packages/api build",
+    "build:web": "pnpm --filter ./packages/web build",
+    "lint:web": "pnpm --filter ./packages/web lint",
+    "preview:web": "pnpm --filter ./packages/web preview",
+    "install:api": "pnpm install --filter ./packages/api",
+    "install:web": "pnpm install --filter ./packages/web",
+    "install:shared-types": "pnpm install --filter ./packages/shared-types",
+    "add:api": "pnpm add $PKG --filter ./packages/api",
+    "add:web": "pnpm add $PKG --filter ./packages/web",
+    "add:shared-types": "pnpm add $PKG --filter ./packages/shared-types"
+  },
+  "devDependencies": {
+    "nx": "^16.7.2",
+    "typescript": "^5.1.6"
+  },
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+}

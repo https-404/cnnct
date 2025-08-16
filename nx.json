@@ -1,0 +1,10 @@
+{
+  "plugins": [
+    {
+      "name": "nx-ts",
+      "options": {
+        "tsConfigPath": "./tsconfig.base.json"
+      }
+    }
+  ]
+}
