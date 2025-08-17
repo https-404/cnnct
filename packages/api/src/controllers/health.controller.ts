@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
+import { ApiResponse } from '../util/response.util';
 
 export const healthCheck = (req: Request, res: Response) => {
-    res.status(200).json({ status: 'ok' });
+    ApiResponse(res, 200, 'Server is healthy!', { uptime: process.uptime() });
 };
