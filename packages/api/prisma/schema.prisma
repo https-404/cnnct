@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int        @id @default(autoincrement())
+  username        String     @unique
+  email           String     @unique
+  password        String     // Hashed password for email-based login
+  profilePicture  String?    // Profile Picture URL stored in MinIO
+  phoneNumber     String?    @unique
+  refreshToken    String?    // Refresh Token for Authentication
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?  // Soft delete timestamp (nullable)
+  isDeleted       Boolean    @default(false)  // Marks if user is "soft deleted"
+
+  // Relationships
+  messagesSent    Message[]  @relation("SentMessages")
+  messagesReceived Message[] @relation("ReceivedMessages")
+  groupMembership GroupMember[]
+}
+
+model Group {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  createdBy   User       @relation(fields: [createdById], references: [id])
+  createdById Int
+
+  // Relationships
+  members     GroupMember[]
+  messages    Message[]
+}
+
+model GroupMember {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  groupId   Int
+  role      Role    // e.g., Admin, Member
+  joinedAt  DateTime @default(now())
+
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id])
+  group     Group    @relation(fields: [groupId], references: [id])
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+model Message {
+  id          Int      @id @default(autoincrement())
+  text        String?
+  mediaUrls   String[] // Array of URLs (images, videos, etc.) stored in MinIO
+  messageType MessageType  @default(TEXT)  // Type of the message (TEXT, IMAGE, VIDEO, FILE)
+  createdAt   DateTime @default(now())
+  senderId    Int
+  receiverId  Int?     // For private chats, receiverId will be set
+  groupId     Int?     // For group chats, groupId will be set
+
+  // Relationships
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver    User?    @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  group       Group?   @relation(fields: [groupId], references: [id])
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  FILE
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  createdAt DateTime @default(now())
+
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id])
+}
