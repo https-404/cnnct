@@ -1,11 +1,10 @@
+import authRouter from './auth.route';
 import healthrouter from './health.route';
 import { Router } from 'express';
 
 const router: Router = Router();
 
-// Debug log to check if the request reaches this file
-console.log('Request reached routes/index.ts');
-
 router.use('/health', healthrouter);
+router.use('/auth', authRouter);
 
 export default router;
