@@ -1,14 +1,16 @@
 # Chat App Monorepo
 
-This monorepo uses [pnpm workspaces](https://pnpm.io/workspaces) and [Nx](https://nx.dev/) to manage multiple packages:
+This is the monorepo for your chat app, managed with [pnpm workspaces](https://pnpm.io/workspaces) and [Nx](https://nx.dev/).
 
-- `api`: Node.js Express backend
-- `web`: React frontend (Vite)
-- `shared-types`: Shared TypeScript types
+## Packages
+
+- **api**: Node.js Express backend (`packages/api`)
+- **web**: React frontend with Vite (`packages/web`)
+- **shared-types**: Shared TypeScript types (`packages/shared-types`)
 
 ## Getting Started
 
-1. **Install dependencies for all packages:**
+1. **Install all dependencies:**
    ```sh
    pnpm install
    ```
@@ -88,4 +90,4 @@ This monorepo uses [pnpm workspaces](https://pnpm.io/workspaces) and [Nx](https:
 
 ---
 
-For more, see the scripts in `package.json` and each package's own scripts.
+For more, see the scripts in the root `package.json` and each package's own scripts.
