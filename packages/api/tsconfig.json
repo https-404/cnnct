@@ -4,6 +4,6 @@
     "outDir": "./dist",
     "rootDir": "../"
   },
-  "include": ["src", "../shared-types"],
+  "include": ["src"],
   "exclude": ["node_modules"]
 }
