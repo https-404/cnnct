@@ -7,8 +7,8 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.get('/api', (req, res) => {
-  const response: APIResponse = { message: 'Hello from the API!' };
+app.get('/health', (req, res) => {
+  const response: APIResponse = { message: 'API is healthy!' };
   res.json(response);
 });
 

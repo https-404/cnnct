@@ -25,6 +25,8 @@ model User {
   messagesSent    Message[]  @relation("SentMessages")
   messagesReceived Message[] @relation("ReceivedMessages")
   groupMembership GroupMember[]
+  createdGroups    Group[]    @relation("UserCreatedGroups")
+  refreshTokens    RefreshToken[] @relation("UserRefreshTokens")
 }
 
 model Group {
@@ -33,7 +35,7 @@ model Group {
   description String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  createdBy   User       @relation(fields: [createdById], references: [id])
+  createdBy   User       @relation("UserCreatedGroups", fields: [createdById], references: [id])
   createdById Int
 
   // Relationships
@@ -88,5 +90,5 @@ model RefreshToken {
   createdAt DateTime @default(now())
 
   // Relationships
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation("UserRefreshTokens", fields: [userId], references: [id])
 }

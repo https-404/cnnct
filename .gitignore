@@ -1,4 +1,5 @@
 # Node.js dependencies
+node_modules/*
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -14,6 +15,9 @@ yarn-error.log*
 /packages/*/.env.local
 /packages/*/.env.development
 /packages/*/.env.production
+/packages/*/node_modules
+/packages/*/prisma/generated
+
 
 # Explicitly ignore .env in packages/api
 /packages/api/.env
