@@ -8,51 +8,74 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id              Int        @id @default(autoincrement())
-  username        String     @unique
-  email           String     @unique
-  password        String     // Hashed password for email-based login
-  profilePicture  String?    // Profile Picture URL stored in MinIO
-  phoneNumber     String?    @unique
-  refreshToken    String?    // Refresh Token for Authentication
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  deletedAt       DateTime?  // Soft delete timestamp (nullable)
-  isDeleted       Boolean    @default(false)  // Marks if user is "soft deleted"
+/* =========================
+   Core Auth / Users
+   ========================= */
 
-  // Relationships
-  messagesSent    Message[]  @relation("SentMessages")
-  messagesReceived Message[] @relation("ReceivedMessages")
-  groupMembership GroupMember[]
-  createdGroups    Group[]    @relation("UserCreatedGroups")
-  refreshTokens    RefreshToken[] @relation("UserRefreshTokens")
+model User {
+  id               Int               @id @default(autoincrement())
+  username         String            @unique
+  email            String            @unique
+  password         String
+  profilePicture   String?
+  phoneNumber      String?           @unique
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?         // Soft delete: NULL = active
+
+  // Messaging (DM + Group)
+  messagesSent     Message[]         @relation("SentMessages")
+  messagesReceived Message[]         @relation("ReceivedMessages")
+
+  // Groups
+  groupMemberships GroupMember[]
+  createdGroups    Group[]           @relation("UserCreatedGroups")
+
+  // Tokens
+  refreshTokens    RefreshToken[]    @relation("UserRefreshTokens")
+
+  // Social graph
+  friends          Friend[]          @relation("UserFriends")     // rows where user is the owner
+  friendedBy       Friend[]          @relation("UserFriendOf")    // rows where user appears as friend
+
+  // Requests
+  requestsSent     ConnectionRequest[] @relation("RequestsSent")
+  requestsReceived ConnectionRequest[] @relation("RequestsReceived")
 }
 
+/* =========================
+   Groups
+   ========================= */
+
 model Group {
-  id          Int         @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   name        String
   description String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  createdBy   User       @relation("UserCreatedGroups", fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  createdBy   User         @relation("UserCreatedGroups", fields: [createdById], references: [id])
   createdById Int
 
-  // Relationships
   members     GroupMember[]
   messages    Message[]
+
+  @@index([createdById])
 }
 
 model GroupMember {
-  id        Int     @id @default(autoincrement())
-  userId    Int
-  groupId   Int
-  role      Role    // e.g., Admin, Member
-  joinedAt  DateTime @default(now())
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  groupId  Int
+  role     Role
+  joinedAt DateTime @default(now())
 
-  // Relationships
-  user      User     @relation(fields: [userId], references: [id])
-  group     Group    @relation(fields: [groupId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate membership
+  @@unique([userId, groupId])
+  @@index([groupId, role])
 }
 
 enum Role {
@@ -60,20 +83,36 @@ enum Role {
   MEMBER
 }
 
-model Message {
-  id          Int      @id @default(autoincrement())
-  text        String?
-  mediaUrls   String[] // Array of URLs (images, videos, etc.) stored in MinIO
-  messageType MessageType  @default(TEXT)  // Type of the message (TEXT, IMAGE, VIDEO, FILE)
-  createdAt   DateTime @default(now())
-  senderId    Int
-  receiverId  Int?     // For private chats, receiverId will be set
-  groupId     Int?     // For group chats, groupId will be set
+/* =========================
+   Messaging
+   ========================= */
 
-  // Relationships
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
-  receiver    User?    @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  group       Group?   @relation(fields: [groupId], references: [id])
+model Message {
+  id          Int          @id @default(autoincrement())
+  text        String?
+  messageType MessageType  @default(TEXT)
+  createdAt   DateTime     @default(now())
+
+  // DM fields (either receiverId set for DM OR groupId set for group)
+  senderId    Int
+  receiverId  Int?
+  groupId     Int?
+
+  sender      User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User?        @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: SetNull)
+  group       Group?       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  // Attachments normalized
+  attachments MessageAttachment[]
+
+  // Helpful query patterns
+  @@index([groupId, createdAt])
+  @@index([receiverId, createdAt])
+  @@index([senderId, createdAt])
+  @@index([createdAt])
+
+  // NOTE: Enforce "only friends can DM" in service logic by checking Friend table
+  // before creating a message with receiverId != NULL.
 }
 
 enum MessageType {
@@ -83,12 +122,83 @@ enum MessageType {
   FILE
 }
 
+model MessageAttachment {
+  id         Int         @id @default(autoincrement())
+  url        String
+  type       MessageType
+  sizeBytes  Int?
+  width      Int?
+  height     Int?
+  durationMs Int?
+
+  messageId  Int
+  message    Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+/* =========================
+   Tokens
+   ========================= */
+
 model RefreshToken {
   id        Int      @id @default(autoincrement())
   token     String   @unique
   userId    Int
   createdAt DateTime @default(now())
 
-  // Relationships
-  user      User     @relation("UserRefreshTokens", fields: [userId], references: [id])
+  user      User     @relation("UserRefreshTokens", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/* =========================
+   Social: Requests & Friends
+   ========================= */
+
+model ConnectionRequest {
+  id          Int             @id @default(autoincrement())
+  requesterId Int
+  recipientId Int
+  status      RequestStatus   @default(PENDING)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  // Optional soft delete/archive if you want to keep history clean
+  resolvedAt  DateTime?
+
+  requester   User            @relation("RequestsSent", fields: [requesterId], references: [id], onDelete: Cascade)
+  recipient   User            @relation("RequestsReceived", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate parallel requests between the same pair.
+  // If you want multiple over time, reuse this row and update status.
+  @@unique([requesterId, recipientId])
+
+  @@index([status, createdAt])
+  @@index([recipientId, status, createdAt])
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELED
+}
+
+/**
+ * Friend rows are stored per-direction to make "list my friends" simple and fast.
+ * On ACCEPT of a ConnectionRequest, create TWO rows:
+ *   (userId = A, friendId = B) and (userId = B, friendId = A)
+ * This also makes it easy to cascade on user delete.
+ */
+model Friend {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  friendId  Int
+  createdAt DateTime @default(now())
+
+  user      User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("UserFriendOf", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId]) // no duplicates per direction
+  @@index([friendId])
 }
