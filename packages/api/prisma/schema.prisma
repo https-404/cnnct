@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "./generated/client"
 }
 
 datasource db {
@@ -13,7 +12,7 @@ datasource db {
    ========================= */
 
 model User {
-  id               Int               @id @default(autoincrement())
+  id               String            @id @default(uuid())
   username         String            @unique
   email            String            @unique
   password         String
@@ -43,19 +42,15 @@ model User {
   requestsReceived ConnectionRequest[] @relation("RequestsReceived")
 }
 
-/* =========================
-   Groups
-   ========================= */
-
 model Group {
-  id          Int          @id @default(autoincrement())
+  id          String      @id @default(uuid())
   name        String
   description String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   createdBy   User         @relation("UserCreatedGroups", fields: [createdById], references: [id])
-  createdById Int
+  createdById String
 
   members     GroupMember[]
   messages    Message[]
@@ -64,9 +59,9 @@ model Group {
 }
 
 model GroupMember {
-  id       Int      @id @default(autoincrement())
-  userId   Int
-  groupId  Int
+  id       String   @id @default(uuid())
+  userId   String
+  groupId  String
   role     Role
   joinedAt DateTime @default(now())
 
@@ -88,15 +83,15 @@ enum Role {
    ========================= */
 
 model Message {
-  id          Int          @id @default(autoincrement())
+  id          String      @id @default(uuid())
   text        String?
   messageType MessageType  @default(TEXT)
   createdAt   DateTime     @default(now())
 
   // DM fields (either receiverId set for DM OR groupId set for group)
-  senderId    Int
-  receiverId  Int?
-  groupId     Int?
+  senderId    String
+  receiverId  String?
+  groupId     String?
 
   sender      User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   receiver    User?        @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: SetNull)
@@ -123,7 +118,7 @@ enum MessageType {
 }
 
 model MessageAttachment {
-  id         Int         @id @default(autoincrement())
+  id         String      @id @default(uuid())
   url        String
   type       MessageType
   sizeBytes  Int?
@@ -131,7 +126,7 @@ model MessageAttachment {
   height     Int?
   durationMs Int?
 
-  messageId  Int
+  messageId  String
   message    Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
@@ -142,9 +137,9 @@ model MessageAttachment {
    ========================= */
 
 model RefreshToken {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(uuid())
   token     String   @unique
-  userId    Int
+  userId    String
   createdAt DateTime @default(now())
 
   user      User     @relation("UserRefreshTokens", fields: [userId], references: [id], onDelete: Cascade)
@@ -157,9 +152,9 @@ model RefreshToken {
    ========================= */
 
 model ConnectionRequest {
-  id          Int             @id @default(autoincrement())
-  requesterId Int
-  recipientId Int
+  id          String         @id @default(uuid())
+  requesterId String
+  recipientId String
   status      RequestStatus   @default(PENDING)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -191,9 +186,9 @@ enum RequestStatus {
  * This also makes it easy to cascade on user delete.
  */
 model Friend {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  friendId  Int
+  id        String   @id @default(uuid())
+  userId    String
+  friendId  String
   createdAt DateTime @default(now())
 
   user      User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
