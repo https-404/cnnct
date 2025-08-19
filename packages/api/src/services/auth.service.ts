@@ -43,12 +43,12 @@ class AuthService {
     return { accessToken, refreshToken, user: serializedUser };
   }
 
-   generateAccessToken(userId: number) {
+   generateAccessToken(userId: string) {
     const accessToken =  jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '15m' });
     return accessToken;
   }
 
-   async generateRefreshToken(userId: number) {
+   async generateRefreshToken(userId: string) {
     const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '7d' });
 
     await prisma.refreshToken.create({
@@ -68,8 +68,8 @@ class AuthService {
       throw new Error('Invalid refresh token');
     }
 
-    const accessToken = this.generateAccessToken(decoded.userId);
-    const newRefreshToken = await this.generateRefreshToken(decoded.userId);
+    const accessToken = this.generateAccessToken(String(decoded.userId));
+    const newRefreshToken = await this.generateRefreshToken(String(decoded.userId));
 
     await prisma.refreshToken.delete({ where: { token: refreshToken } });
 
