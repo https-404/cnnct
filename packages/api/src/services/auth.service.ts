@@ -44,12 +44,12 @@ class AuthService {
   }
 
    generateAccessToken(userId: string) {
-    const accessToken =  jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '15m' });
+    const accessToken =  jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '30d' });
     return accessToken;
   }
 
    async generateRefreshToken(userId: string) {
-    const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '7d' });
+    const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '90d' });
 
     await prisma.refreshToken.create({
       data: {

@@ -2,6 +2,7 @@ import { serializeUserResponse } from "../util/userResponse.util";
 import { prisma } from "../lib/prisma";
 import { putBuffer } from "../lib/minio";
 import { compressImage } from "../util/compressImage";
+import { randomUUID } from "crypto";
 
 type MulterFile = Express.Multer.File;
 
@@ -15,6 +16,8 @@ export const uploadProfilePicture = async (userId: string, file: MulterFile) => 
   }
 
   const compressedBuffer = await compressImage(file.buffer);
+
+file.originalname = randomUUID();
 
   const imageUrl = await putBuffer(file.originalname, compressedBuffer, file.mimetype);
 
