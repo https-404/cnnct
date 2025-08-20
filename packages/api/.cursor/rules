@@ -1,0 +1,42 @@
+# Cursor/AI Agentic Coding Rules for chat-app-api
+extends = "recommended"
+
+[naming]
+convention = "camelCase"
+file_convention = "kebab-case"
+
+[limits]
+max_function_length = 60
+max_file_length = 400
+max_params = 5
+
+[style]
+prefer_async_await = true
+prefer_const = true
+sort_imports = true
+no_unused_vars = true
+no_console = "warn"
+no_magic_numbers = [2, 5, 10, 100]
+indent = 2
+semi = true
+single_quote = true
+trailing_comma = "all"
+print_width = 100
+arrow_parens = "always"
+end_of_line = "lf"
+
+[ai]
+agentic = true
+copilot = true
+cursor = true
+
+[architecture]
+layering = ["controllers", "services", "DTOs", "middleware", "routes", "lib", "types", "util"]
+principles = ["Separation of concerns", "Single responsibility", "Explicit DTOs", "Service abstraction", "Middleware for cross-cutting concerns"]
+
+[testing]
+framework = "jest"
+coverage = 80
+
+[documentation]
+require_jsdoc = true
