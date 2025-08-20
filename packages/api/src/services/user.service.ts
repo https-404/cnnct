@@ -39,3 +39,22 @@ export const uploadProfilePicture = async (userId: string, file: MulterFile) => 
     profilePictureExtension: ext
   };
 };
+
+export const getCurrentUser = async (userId: string) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error("User not found");
+  return serializeUserResponse(user);
+};
+
+export const updateCurrentUser = async (userId: string, data: Partial<{ username: string; email: string; phoneNumber: string; profilePicture: string; }>) => {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      username: data.username,
+      email: data.email,
+      phoneNumber: data.phoneNumber,
+      profilePicture: data.profilePicture,
+    },
+  });
+  return serializeUserResponse(user);
+};
