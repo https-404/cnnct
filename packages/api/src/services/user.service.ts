@@ -1,8 +1,10 @@
 import { serializeUserResponse } from "../util/userResponse.util";
 import { prisma } from "../lib/prisma";
 import { putBuffer } from "../lib/minio";
+import { backendStorageUrl } from "../util/backendStorageUrl";
 import { compressImage } from "../util/compressImage";
 import { randomUUID } from "crypto";
+import path from "path";
 
 type MulterFile = Express.Multer.File;
 
@@ -15,16 +17,25 @@ export const uploadProfilePicture = async (userId: string, file: MulterFile) => 
     throw new Error("No file uploaded");
   }
 
+
   const compressedBuffer = await compressImage(file.buffer);
 
-file.originalname = randomUUID();
+  // Extract extension from original filename
+  const ext = path.extname(file.originalname) || '';
+  // Generate a new unique filename with the original extension
+  const uniqueName = randomUUID() + ext;
 
-  const imageUrl = await putBuffer(file.originalname, compressedBuffer, file.mimetype);
+  await putBuffer(uniqueName, compressedBuffer, file.mimetype);
+  const imageUrl = backendStorageUrl(uniqueName);
 
   const user = await prisma.user.update({
     where: { id: userId },
     data: { profilePicture: imageUrl },
   });
 
-  return serializeUserResponse(user);
+  // Optionally, return the extension as well
+  return {
+    ...serializeUserResponse(user),
+    profilePictureExtension: ext
+  };
 };
