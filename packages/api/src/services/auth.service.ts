@@ -1,3 +1,4 @@
+
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { prisma } from '../lib/prisma'; 
@@ -6,6 +7,12 @@ import { serializeUserResponse } from '../util/userResponse.util';
 
 
 class AuthService {
+
+  async logout(refreshToken: string) {
+    // Remove the refresh token from the database
+    await prisma.refreshToken.delete({ where: { token: refreshToken } }).catch(() => {});
+    return { success: true };
+  }
   async login(email: string, password: string) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !(await bcrypt.compare(password, user.password))) {

@@ -44,6 +44,16 @@ export const login: RequestHandler = async  (req: Request, res: Response) => {
     }
   }
 
+  export const logout: RequestHandler = async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return ApiResponse(res, 400, 'Refresh token required');
+    await AuthService.logout(refreshToken);
+    ApiResponse(res, 200, 'Logged out successfully');
+  } catch (error) {
+    ApiResponse(res, 400, 'Logout failed');
+  }
+};
 
 
 
