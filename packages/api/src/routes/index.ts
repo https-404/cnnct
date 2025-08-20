@@ -1,3 +1,4 @@
+import friendRouter from './friend.route';
 import authRouter from './auth.route';
 import healthrouter from './health.route';
 import { Router } from 'express';
@@ -11,7 +12,7 @@ const router: Router = Router();
 router.use('/health', healthrouter);
 router.use('/auth', authRouter);
 router.use('/user', authenticateToken, userRouter);
-
+router.use('/friends', friendRouter);
 router.use('/requests', requestRouter);
 
 router.use('/storage', storageRouter);
