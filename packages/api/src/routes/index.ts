@@ -1,3 +1,4 @@
+import messageRouter from './message.route';
 import friendRouter from './friend.route';
 import authRouter from './auth.route';
 import healthrouter from './health.route';
@@ -14,7 +15,7 @@ router.use('/auth', authRouter);
 router.use('/user', authenticateToken, userRouter);
 router.use('/friends', friendRouter);
 router.use('/requests', requestRouter);
-
+router.use('/message', messageRouter);
 router.use('/storage', storageRouter);
 
 export default router;
