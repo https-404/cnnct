@@ -11,8 +11,16 @@ export const uploadProfilePictureController = async (req: Request, res: Response
   try {
     const updatedUser = await uploadProfilePicture(userId, file);
     return ApiResponse(res, 200, "Profile picture uploaded successfully", updatedUser);
-  } catch (error) {
-    return ApiResponse(res, 500, "Failed to upload profile picture");
+  } catch (error: any) {
+    let message = 'Failed to upload profile picture';
+    if (error?.code === 'P2002' && error?.meta?.target?.includes('username')) {
+      message = 'Username already exists';
+    } else if (error?.code === 'P2002' && error?.meta?.target?.includes('email')) {
+      message = 'Email already exists';
+    } else if (error instanceof Error) {
+      message = error.message;
+    }
+    return ApiResponse(res, 500, message);
   }
 
 }
@@ -24,8 +32,12 @@ export const getCurrentUserController = async (req: Request, res: Response) => {
   try {
     const user = await getCurrentUser(userId);
     return ApiResponse(res, 200, "User profile fetched", user);
-  } catch (error) {
-    return ApiResponse(res, 500, "Failed to fetch user profile");
+  } catch (error: any) {
+    let message = 'Failed to fetch user profile';
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return ApiResponse(res, 500, message);
   }
 };
 
@@ -35,7 +47,15 @@ export const updateCurrentUserController = async (req: Request, res: Response) =
   try {
     const user = await updateCurrentUser(userId, req.body);
     return ApiResponse(res, 200, "User profile updated", user);
-  } catch (error) {
-    return ApiResponse(res, 500, "Failed to update user profile");
+  } catch (error: any) {
+    let message = 'Failed to update user profile';
+    if (error?.code === 'P2002' && error?.meta?.target?.includes('username')) {
+      message = 'Username already exists';
+    } else if (error?.code === 'P2002' && error?.meta?.target?.includes('email')) {
+      message = 'Email already exists';
+    } else if (error instanceof Error) {
+      message = error.message;
+    }
+    return ApiResponse(res, 500, message);
   }
 };

@@ -12,8 +12,15 @@ export const login: RequestHandler = async  (req: Request, res: Response) => {
       const { email, password } = req.body;
       const tokens = await AuthService.login(email, password);
       ApiResponse(res, 200, 'Login successful', tokens);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unauthorized';
+    } catch (error: any) {
+      let message = 'Unauthorized';
+      if (error?.code === 'P2002' && error?.meta?.target?.includes('username')) {
+        message = 'Username already exists';
+      } else if (error?.code === 'P2002' && error?.meta?.target?.includes('email')) {
+        message = 'Email already exists';
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
       ApiResponse(res, 401, message);
     }
   }
@@ -28,8 +35,16 @@ export const login: RequestHandler = async  (req: Request, res: Response) => {
 
       const tokens = await AuthService.register(registerData);
       ApiResponse(res, 201, 'Registration successful', tokens);
-    } catch (error) {
-      ApiResponse(res, 400, (error as Error).message);
+    } catch (error: any) {
+      let message = 'Registration failed';
+      if (error?.code === 'P2002' && error?.meta?.target?.includes('username')) {
+        message = 'Username already exists';
+      } else if (error?.code === 'P2002' && error?.meta?.target?.includes('email')) {
+        message = 'Email already exists';
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+      ApiResponse(res, 400, message);
     }
   }
 
@@ -50,8 +65,14 @@ export const login: RequestHandler = async  (req: Request, res: Response) => {
     if (!refreshToken) return ApiResponse(res, 400, 'Refresh token required');
     await AuthService.logout(refreshToken);
     ApiResponse(res, 200, 'Logged out successfully');
-  } catch (error) {
-    ApiResponse(res, 400, 'Logout failed');
+  } catch (error: any) {
+    let message = 'Logout failed';
+    if (error?.code === 'P2025') {
+      message = 'Refresh token not found';
+    } else if (error instanceof Error) {
+      message = error.message;
+    }
+    ApiResponse(res, 400, message);
   }
 };
 
