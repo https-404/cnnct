@@ -1,8 +1,7 @@
 import React from 'react';
+import { Button } from "@/components/ui/button";
 
 function App() {
-
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white shadow-lg rounded-lg p-8 max-w-sm w-full">
@@ -20,9 +19,7 @@ function App() {
         <p className="text-gray-700 mb-4">
           If you see this styled card, Tailwind CSS is working!
         </p>
-        <button className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
-          Test Button
-        </button>
+        <Button className="w-full">shadcn/ui Button</Button>
       </div>
     </div>
   )
