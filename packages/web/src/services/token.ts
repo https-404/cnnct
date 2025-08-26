@@ -8,7 +8,7 @@ export const setAccessToken = (token: string): void => {
   window.localStorage.setItem("access_token", token);
 };
 
-export const removeAccessToken = (): void => {
+ const removeAccessToken = (): void => {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem("access_token");
 };
@@ -23,7 +23,12 @@ export const setRefreshToken = (token: string): void => {
   window.localStorage.setItem("refresh_token", token);
 };
 
-export const removeRefreshToken = (): void => {
+ const removeRefreshToken = (): void => {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem("refresh_token");
+};
+
+export const clearTokens = (): void => {
+  removeAccessToken();
+  removeRefreshToken();
 };
