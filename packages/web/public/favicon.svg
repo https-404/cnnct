@@ -1,0 +1,20 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">cnnct icon</title>
+  <desc id="desc">Interlocking chain mark</desc>
+  <defs>
+    <style>
+      :root { --cnnct-primary: #5B8CFF; }
+      .p { stroke: var(--cnnct-primary); }
+    </style>
+  </defs>
+
+  <g transform="translate(8,12)">
+    <g transform="rotate(-25 20 20)">
+      <rect x="2" y="6" width="36" height="28" rx="14" class="p" stroke-width="6" />
+    </g>
+    <g transform="rotate(25 44 20)">
+      <rect x="26" y="6" width="36" height="28" rx="14" class="p" stroke-width="6" />
+    </g>
+    <circle cx="40" cy="20" r="3" class="p" fill="var(--cnnct-primary)"/>
+  </g>
+</svg>
