@@ -6,6 +6,8 @@ interface Message {
   senderId: string | number;
   content: string;
   timestamp: string;
+  fileType?: string;
+  fileName?: string;
 }
 
 interface Friend {
