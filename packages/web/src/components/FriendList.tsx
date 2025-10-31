@@ -14,65 +14,65 @@ type FriendWithLastMessage = User & {
   lastMessageTime?: string;
 };
 
-export function FriendList() {
+export function FriendList({ refreshTrigger }: { refreshTrigger?: number }) {
   const dispatch = useDispatch();
   const [search, setSearch] = useState("");
   const [friends, setFriends] = useState<FriendWithLastMessage[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchFriends = async () => {
-      try {
-        setLoading(true);
-        const friendsList = await friendService.getFriends();
-        
-        // Fetch last message for each friend
-        const friendsWithMessages = await Promise.all(
-          friendsList.map(async (friend) => {
-            try {
-              const messages = await messageService.getMessages(friend.id, 1, 1);
-              const lastMessage = messages[0];
-              if (lastMessage) {
-                const date = new Date(lastMessage.createdAt);
-                const now = new Date();
-                const diffTime = now.getTime() - date.getTime();
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                
-                let lastMessageTime = "";
-                if (diffDays === 0) {
-                  lastMessageTime = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                } else if (diffDays === 1) {
-                  lastMessageTime = "Yesterday";
-                } else if (diffDays < 7) {
-                  lastMessageTime = date.toLocaleDateString('en-US', { weekday: 'short' });
-                } else {
-                  lastMessageTime = date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
-                }
-                
-                return {
-                  ...friend,
-                  lastMessage: lastMessage.text || "Media",
-                  lastMessageTime,
-                };
+  const fetchFriends = async () => {
+    try {
+      setLoading(true);
+      const friendsList = await friendService.getFriends();
+      
+      // Fetch last message for each friend
+      const friendsWithMessages = await Promise.all(
+        friendsList.map(async (friend) => {
+          try {
+            const messages = await messageService.getMessages(friend.id, 1, 1);
+            const lastMessage = messages[0];
+            if (lastMessage) {
+              const date = new Date(lastMessage.createdAt);
+              const now = new Date();
+              const diffTime = now.getTime() - date.getTime();
+              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+              
+              let lastMessageTime = "";
+              if (diffDays === 0) {
+                lastMessageTime = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+              } else if (diffDays === 1) {
+                lastMessageTime = "Yesterday";
+              } else if (diffDays < 7) {
+                lastMessageTime = date.toLocaleDateString('en-US', { weekday: 'short' });
+              } else {
+                lastMessageTime = date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
               }
-              return friend;
-            } catch (error) {
-              // If no messages, just return friend without last message
-              return friend;
+              
+              return {
+                ...friend,
+                lastMessage: lastMessage.text || "Media",
+                lastMessageTime,
+              };
             }
-          })
-        );
-        
-        setFriends(friendsWithMessages);
-      } catch (error) {
-        console.error("Failed to fetch friends:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+            return friend;
+          } catch (error) {
+            // If no messages, just return friend without last message
+            return friend;
+          }
+        })
+      );
+      
+      setFriends(friendsWithMessages);
+    } catch (error) {
+      console.error("Failed to fetch friends:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchFriends();
-  }, []);
+  }, [refreshTrigger]);
 
   const filtered = friends.filter(f => 
     f.username.toLowerCase().includes(search.toLowerCase()) ||

@@ -2,14 +2,20 @@ import { prisma } from "../lib/prisma";
 import { serializeUserResponse } from "../util/userResponse.util";
 
 export const listRequests = async (userId: string) => {
-  // List requests sent and received by the user
+  // List requests sent and received by the user - only PENDING requests
   const sent = await prisma.connectionRequest.findMany({
-    where: { requesterId: userId },
+    where: { 
+      requesterId: userId,
+      status: 'PENDING' // Only return pending requests
+    },
     include: { recipient: true },
     orderBy: { createdAt: 'desc' },
   });
   const received = await prisma.connectionRequest.findMany({
-    where: { recipientId: userId },
+    where: { 
+      recipientId: userId,
+      status: 'PENDING' // Only return pending requests
+    },
     include: { requester: true },
     orderBy: { createdAt: 'desc' },
   });

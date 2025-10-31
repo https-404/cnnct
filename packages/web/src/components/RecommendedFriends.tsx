@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "./ui/Card";
 import { Avatar } from "./ui/Avatar";
 import { Button } from "./ui/button";
+import { userService } from "../services/api/user.service";
 import { friendService } from "../services/api/friend.service";
 import { requestService } from "../services/api/request.service";
 import { User } from "../types/user.type";
@@ -13,12 +14,32 @@ export function RecommendedFriends() {
   useEffect(() => {
     const fetchRecommended = async () => {
       try {
-        // For now, we'll just get all friends and show a limited subset
-        // In a real app, you'd have a "recommended friends" endpoint
+        // Get current friends to exclude them
         const friends = await friendService.getFriends();
-        // Take first 3 as "recommended" - this is a placeholder
-        // You'd want to implement actual recommendation logic
-        setRecommended(friends.slice(0, 3));
+        const friendIds = new Set(friends.map(f => f.id));
+        
+        // Search for users with common usernames (you can make this smarter)
+        // For now, we'll try to find users that aren't friends
+        // This is a simple approach - in production, you'd want a proper recommendation endpoint
+        const searchQueries = ['a', 'b', 'c', 'd', 'e']; // Try common letters
+        const allUsers: User[] = [];
+        
+        for (const query of searchQueries) {
+          try {
+            const results = await userService.searchUsers(query);
+            allUsers.push(...results.filter(user => !friendIds.has(user.id)));
+            if (allUsers.length >= 3) break;
+          } catch (error) {
+            // Continue if search fails
+          }
+        }
+        
+        // Remove duplicates and take first 3
+        const uniqueUsers = Array.from(
+          new Map(allUsers.map(user => [user.id, user])).values()
+        ).slice(0, 3);
+        
+        setRecommended(uniqueUsers);
       } catch (error) {
         console.error("Failed to fetch recommended friends:", error);
         setRecommended([]);

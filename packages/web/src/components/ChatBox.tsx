@@ -88,7 +88,7 @@ export function ChatBox() {
       {/* Chat header */}
       <div className="flex items-center p-3 px-4 bg-[#f0f2f5] border-b border-[#e9edef] shadow-sm h-[60px]">
         <div className="flex items-center flex-1">
-          <Avatar src={activeFriend.avatar} alt={activeFriend.name} className="h-10 w-10" />
+          <Avatar src={activeFriend.avatar || undefined} alt={activeFriend.name} className="h-10 w-10" />
           <div className="ml-4">
             <h3 className="text-base font-medium text-[#111b21]">{activeFriend.name}</h3>
             <p className="text-xs text-[#667781]">Online</p>

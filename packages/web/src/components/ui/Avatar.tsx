@@ -1,6 +1,14 @@
+import { useState, useEffect } from "react";
 import { cn } from "../../lib/utils";
 
 export function Avatar({ src, alt, className }: { src?: string; alt?: string; className?: string }) {
+  const [imageError, setImageError] = useState(false);
+
+  // Reset error state when src changes
+  useEffect(() => {
+    setImageError(false);
+  }, [src]);
+
   // Generate a placeholder avatar with initials
   const getInitials = (name?: string): string => {
     if (!name) return "?";
@@ -26,23 +34,26 @@ export function Avatar({ src, alt, className }: { src?: string; alt?: string; cl
     return colors[Math.abs(hash) % colors.length];
   };
 
-  if (src) {
+  // Show placeholder if no src, or if image failed to load
+  if (!src || imageError) {
     return (
-      <img
-        src={src}
-        alt={alt || "User avatar"}
-        className={cn("w-10 h-10 rounded-full object-cover border border-gray-200", className)}
-      />
+      <div className={cn(
+        "w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold border border-gray-200",
+        getPlaceholderColor(alt),
+        className
+      )}>
+        {getInitials(alt)}
+      </div>
     );
   }
 
   return (
-    <div className={cn(
-      "w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold border border-gray-200",
-      getPlaceholderColor(alt),
-      className
-    )}>
-      {getInitials(alt)}
-    </div>
+    <img
+      src={src}
+      alt={alt || "User avatar"}
+      className={cn("w-10 h-10 rounded-full object-cover border border-gray-200", className)}
+      onError={() => setImageError(true)}
+      onLoad={() => setImageError(false)}
+    />
   );
 }

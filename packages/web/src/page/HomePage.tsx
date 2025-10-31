@@ -6,6 +6,7 @@ import { ChatPlaceholder } from "../components/ChatPlaceholder";
 import { ChatBox } from "../components/ChatBox";
 import { RecommendedFriends } from "../components/RecommendedFriends";
 import { SearchBar } from "../components/ui/SearchBar";
+import { Avatar } from "../components/ui/Avatar";
 import { selectActiveFriend } from "../feature/chat/chatSlice";
 import { requestService, FriendRequest } from "../services/api/request.service";
 import { userService } from "../services/api/user.service";
@@ -19,6 +20,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [searching, setSearching] = useState(false);
+  const [friendListRefreshTrigger, setFriendListRefreshTrigger] = useState(0);
   const activeFriend = useSelector(selectActiveFriend);
 
   // Fetch friend requests on mount
@@ -51,20 +53,45 @@ export default function HomePage() {
 
   // Handle friend request actions
   const handleAcceptRequest = async (requestId: string) => {
+    // Optimistically update UI
+    const requestToAccept = friendRequests.find(r => r.id === requestId);
+    setFriendRequests(prev => prev.filter(r => r.id !== requestId));
+    
     try {
       await requestService.acceptRequest(requestId);
-      setFriendRequests(prev => prev.filter(r => r.id !== requestId));
+      
+      // Refresh friend requests
+      const response = await requestService.getRequests();
+      setFriendRequests(response.received || []);
+      
+      // Refresh friend list to show newly added friend
+      setFriendListRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error("Failed to accept request:", error);
+      // Restore request on error
+      if (requestToAccept) {
+        setFriendRequests(prev => [...prev, requestToAccept]);
+      }
     }
   };
 
   const handleRejectRequest = async (requestId: string) => {
+    // Optimistically update UI
+    const requestToReject = friendRequests.find(r => r.id === requestId);
+    setFriendRequests(prev => prev.filter(r => r.id !== requestId));
+    
     try {
       await requestService.rejectRequest(requestId);
-      setFriendRequests(prev => prev.filter(r => r.id !== requestId));
+      
+      // Refresh friend requests to make sure UI is in sync
+      const response = await requestService.getRequests();
+      setFriendRequests(response.received || []);
     } catch (error) {
       console.error("Failed to reject request:", error);
+      // Restore request on error
+      if (requestToReject) {
+        setFriendRequests(prev => [...prev, requestToReject]);
+      }
     }
   };
 
@@ -97,7 +124,7 @@ export default function HomePage() {
             />
           </div>
           <div className="flex-1 overflow-y-auto">
-            <FriendList />
+            <FriendList refreshTrigger={friendListRefreshTrigger} />
           </div>
         </aside>
         
@@ -136,13 +163,11 @@ export default function HomePage() {
               {showContactInfo && activeFriend ? (
                 <div className="p-4">
                   <div className="flex flex-col items-center mb-6 pt-4">
-                    <div className="w-32 h-32 rounded-full overflow-hidden mb-4">
-                      <img 
-                        src={activeFriend.avatar || "https://via.placeholder.com/150"} 
-                        alt={activeFriend.name} 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                    <Avatar
+                      src={activeFriend.avatar || undefined}
+                      alt={activeFriend.name}
+                      className="w-32 h-32 mb-4 border-4 border-gray-200"
+                    />
                     <h2 className="text-xl font-medium text-[#111b21]">{activeFriend.name}</h2>
                     <p className="text-sm text-[#667781] mt-1">Online</p>
                   </div>
@@ -284,10 +309,10 @@ function FriendRequestItem({
 }) {
   return (
     <div className="flex items-center p-3 rounded-lg hover:bg-[#f0f2f5]">
-      <img 
-        src={avatar || "https://via.placeholder.com/150"} 
+      <Avatar 
+        src={avatar || undefined} 
         alt={name} 
-        className="w-12 h-12 rounded-full mr-3" 
+        className="w-12 h-12 mr-3" 
       />
       <div className="flex-1">
         <h4 className="font-medium text-[#111b21]">{name}</h4>
@@ -326,10 +351,10 @@ function SearchResultItem({ user }: { user: User }) {
 
   return (
     <div className="flex items-center p-3 rounded-lg hover:bg-[#f0f2f5] border border-[#e9edef]">
-      <img 
-        src={user.avatar || "https://via.placeholder.com/150"} 
+      <Avatar 
+        src={user.avatar || undefined} 
         alt={user.username} 
-        className="w-10 h-10 rounded-full mr-3" 
+        className="w-10 h-10 mr-3" 
       />
       <div className="flex-1">
         <h4 className="font-medium text-[#111b21]">{user.username}</h4>
