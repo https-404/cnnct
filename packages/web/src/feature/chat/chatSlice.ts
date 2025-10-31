@@ -4,10 +4,24 @@ import { RootState } from '../../store';
 interface Message {
   id: string;
   senderId: string | number;
-  content: string;
+  content?: string;
+  text?: string;
   timestamp: string;
+  createdAt?: string;
+  messageType?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'FILE' | 'AUDIO';
   fileType?: string;
   fileName?: string;
+  attachments?: Array<{
+    id: string;
+    url: string;
+    type: 'IMAGE' | 'VIDEO' | 'FILE' | 'AUDIO';
+    sizeBytes?: number;
+    width?: number;
+    height?: number;
+    durationMs?: number;
+    fileName?: string;
+  }>;
+  tempId?: string;
 }
 
 interface Friend {
@@ -51,7 +65,26 @@ export const chatSlice = createSlice({
       if (!state.messages[friendId]) {
         state.messages[friendId] = [];
       }
-      state.messages[friendId].push(message);
+      // Check if message already exists (by id or tempId)
+      const exists = state.messages[friendId].some(m => m.id === message.id || (message.tempId && m.tempId === message.tempId));
+      if (!exists) {
+        state.messages[friendId].push(message);
+        // Sort by timestamp
+        state.messages[friendId].sort((a, b) => {
+          const timeA = new Date(a.timestamp || a.createdAt || 0).getTime();
+          const timeB = new Date(b.timestamp || b.createdAt || 0).getTime();
+          return timeA - timeB;
+        });
+      }
+    },
+    updateMessage: (state, action: PayloadAction<{ friendId: string | number, tempId: string, message: Message }>) => {
+      const { friendId, tempId, message } = action.payload;
+      if (state.messages[friendId]) {
+        const index = state.messages[friendId].findIndex(m => m.tempId === tempId);
+        if (index !== -1) {
+          state.messages[friendId][index] = { ...state.messages[friendId][index], ...message, tempId: undefined };
+        }
+      }
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
@@ -67,6 +100,7 @@ export const {
   clearActiveFriend, 
   setMessages, 
   addMessage,
+  updateMessage,
   setLoading,
   setError
 } = chatSlice.actions;

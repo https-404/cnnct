@@ -1,86 +1,361 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
   selectActiveFriend, 
   selectMessages, 
-  addMessage 
+  addMessage,
+  setMessages,
+  updateMessage 
 } from '../feature/chat/chatSlice';
+import { selectAuthUser } from '../feature/auth/auth.slice';
 import { Avatar } from './ui/Avatar';
 import { Input } from './ui/Input';
 import { RootState } from '../store';
 import { v4 as uuidv4 } from 'uuid';
+import { connectSocket, sendMessage, startTyping, stopTyping, disconnectSocket, ChatMessage } from '../services/socket/socket.service';
+import { messageService } from '../services/api/message.service';
+import { ChatMessagePayload } from '../services/socket/socket.service';
 
 export function ChatBox() {
   const dispatch = useDispatch();
   const activeFriend = useSelector(selectActiveFriend);
+  const currentUser = useSelector((state: RootState) => selectAuthUser(state));
   const messages = useSelector((state: RootState) => 
     selectMessages(state, activeFriend?.id)
   );
   const [newMessage, setNewMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [attachments, setAttachments] = useState<Array<{ url: string; type: string; fileName: string }>>([]);
+  const [uploading, setUploading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  // Initialize socket connection
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    connectSocket({
+      onMessage: (message: ChatMessage) => {
+        // Handle received message
+        const friendId = message.receiverId || message.groupId;
+        if (friendId === activeFriend?.id || message.groupId) {
+          dispatch(addMessage({
+            friendId: friendId || activeFriend?.id || '',
+            message: {
+              id: message.id,
+              senderId: message.senderId,
+              text: message.text,
+              content: message.text,
+              timestamp: message.createdAt,
+              createdAt: message.createdAt,
+              messageType: message.messageType,
+              attachments: message.attachments?.map(att => ({
+                id: att.id,
+                url: att.url,
+                type: att.type as any,
+                sizeBytes: att.sizeBytes,
+                width: att.width,
+                height: att.height,
+                durationMs: att.durationMs,
+                fileName: att.fileName,
+              })),
+            }
+          }));
+          
+          // Scroll to bottom
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+        }
+      },
+      onMessageSent: (message: ChatMessage) => {
+        // Update optimistic message with real message
+        if (message.tempId) {
+          dispatch(updateMessage({
+            friendId: message.receiverId || message.groupId || '',
+            tempId: message.tempId,
+            message: {
+              id: message.id,
+              senderId: message.senderId,
+              text: message.text,
+              content: message.text,
+              timestamp: message.createdAt,
+              createdAt: message.createdAt,
+              messageType: message.messageType,
+              attachments: message.attachments?.map(att => ({
+                id: att.id,
+                url: att.url,
+                type: att.type as any,
+                sizeBytes: att.sizeBytes,
+                width: att.width,
+                height: att.height,
+                durationMs: att.durationMs,
+                fileName: att.fileName,
+              })),
+            }
+          }));
+        }
+      },
+      onMessageError: (error) => {
+        console.error('Message error:', error);
+        // Could show error notification here
+      },
+      onTypingStart: (data) => {
+        setTypingUsers(prev => new Set(prev).add(data.userId));
+      },
+      onTypingStop: (data) => {
+        setTypingUsers(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(data.userId);
+          return newSet;
+        });
+      },
+      onConnect: () => {
+        console.log('Socket connected for chat');
+      },
+      onDisconnect: () => {
+        console.log('Socket disconnected');
+      },
+    });
+
+    return () => {
+      disconnectSocket();
+    };
+  }, [currentUser?.id, dispatch]);
+
+  // Load messages when active friend changes
+  useEffect(() => {
+    if (!activeFriend?.id || !currentUser?.id) return;
+
+    const loadMessages = async () => {
+      try {
+        const loadedMessages = await messageService.getMessages(activeFriend.id as string);
+        dispatch(setMessages({
+          friendId: activeFriend.id,
+          messages: loadedMessages.map(msg => ({
+            id: msg.id,
+            senderId: msg.senderId,
+            text: msg.text,
+            content: msg.text || msg.messageType,
+            timestamp: msg.createdAt,
+            createdAt: msg.createdAt,
+            messageType: msg.messageType,
+            attachments: msg.attachments?.map(att => ({
+              id: att.id,
+              url: att.url,
+              type: att.type as any,
+              sizeBytes: att.sizeBytes,
+              width: att.width,
+              height: att.height,
+              durationMs: att.durationMs,
+              fileName: att.fileName,
+            })),
+          }))
+        }));
+
+        // Scroll to bottom after loading
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } catch (error) {
+        console.error('Failed to load messages:', error);
+      }
+    };
+
+    loadMessages();
+  }, [activeFriend?.id, currentUser?.id, dispatch]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   if (!activeFriend) {
     return null;
   }
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newMessage.trim() === '') return;
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
-    const message = {
-      id: uuidv4(),
-      senderId: 'current-user', // This would be the actual user ID in a real app
-      content: newMessage,
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!activeFriend?.id || !currentUser?.id) return;
+    
+    const text = newMessage.trim();
+    const hasAttachments = attachments.length > 0;
+    
+    if (!text && !hasAttachments) return;
+
+    const tempId = uuidv4();
+    const tempMessage = {
+      id: tempId,
+      tempId,
+      senderId: currentUser.id,
+      text: text || undefined,
+      content: text || 'Attachment',
       timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      messageType: hasAttachments ? attachments[0].type.toUpperCase() as any : 'TEXT' as any,
+      attachments: hasAttachments ? attachments.map(att => ({
+        id: uuidv4(),
+        url: att.url,
+        type: att.type.toUpperCase() as any,
+        fileName: att.fileName,
+      })) : undefined,
     };
 
-    dispatch(addMessage({ 
-      friendId: activeFriend.id, 
-      message 
+    // Optimistically add message
+    dispatch(addMessage({
+      friendId: activeFriend.id,
+      message: tempMessage
     }));
-    
+
+    // Send via socket
+    const payload: ChatMessagePayload = {
+      text: text || undefined,
+      receiverId: activeFriend.id as string,
+      attachments: hasAttachments ? attachments.map(att => ({
+        url: att.url,
+        type: att.type.toUpperCase() as any,
+        fileName: att.fileName,
+      })) : undefined,
+      tempId,
+    };
+
+    try {
+      sendMessage(payload, (response) => {
+        if (!response.success) {
+          // Remove optimistic message on error
+          // You might want to add a removeMessage action here
+          console.error('Failed to send message:', response.error);
+        }
+      });
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+
+    // Clear inputs
     setNewMessage('');
+    setAttachments([]);
     
-    // Scroll to bottom after sending message
+    // Scroll to bottom
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
 
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-  
   const handleFileUpload = () => {
     fileInputRef.current?.click();
   };
-  
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      // In a real app, you would upload the file to a server here
-      // For now, we'll just create a message with the file name
-      const file = files[0];
-      const fileMessage = {
-        id: uuidv4(),
-        senderId: 'current-user',
-        content: `📎 File: ${file.name}`,
-        timestamp: new Date().toISOString(),
-        fileType: file.type,
-        fileName: file.name
-      };
-      
-      dispatch(addMessage({
-        friendId: activeFriend.id,
-        message: fileMessage
-      }));
-      
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    
+    try {
+      const fileArray = Array.from(files).slice(0, 4); // Max 4 attachments
+      const uploadPromises = fileArray.map(async (file) => {
+        const attachment = await messageService.uploadAttachment(file);
+        return {
+          url: attachment.url,
+          type: attachment.type.toLowerCase(),
+          fileName: attachment.fileName,
+        };
+      });
+
+      const uploadedAttachments = await Promise.all(uploadPromises);
+      setAttachments(prev => [...prev, ...uploadedAttachments]);
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+      alert('Failed to upload file. Please try again.');
+    } finally {
+      setUploading(false);
       // Reset file input
-      e.target.value = '';
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
+  };
+
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], `audio-${Date.now()}.webm`, { type: 'audio/webm' });
+        
+        setUploading(true);
+        try {
+          const attachment = await messageService.uploadAttachment(audioFile);
+          setAttachments(prev => [...prev, {
+            url: attachment.url,
+            type: 'audio',
+            fileName: attachment.fileName,
+          }]);
+        } catch (error) {
+          console.error('Failed to upload audio:', error);
+          alert('Failed to upload audio. Please try again.');
+        } finally {
+          setUploading(false);
+        }
+
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = chunks;
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      alert('Failed to start recording. Please check microphone permissions.');
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleTyping = () => {
+    if (!activeFriend?.id) return;
+    
+    startTyping({ receiverId: activeFriend.id as string });
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    // Stop typing after 3 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      stopTyping({ receiverId: activeFriend.id as string });
+    }, 3000);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -91,7 +366,9 @@ export function ChatBox() {
           <Avatar src={activeFriend.avatar || undefined} alt={activeFriend.name} className="h-10 w-10" />
           <div className="ml-4">
             <h3 className="text-base font-medium text-[#111b21]">{activeFriend.name}</h3>
-            <p className="text-xs text-[#667781]">Online</p>
+            <p className="text-xs text-[#667781]">
+              {typingUsers.size > 0 ? 'typing...' : 'Online'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-4 text-[#54656f]">
@@ -119,45 +396,137 @@ export function ChatBox() {
             </div>
           </div>
         ) : (
-          messages.map((message) => (
-            <div 
-              key={message.id} 
-              className={`flex ${message.senderId === 'current-user' ? 'justify-end' : 'justify-start'}`}
-            >
+          messages.map((message) => {
+            const isSent = message.senderId === currentUser?.id;
+            return (
               <div 
-                className={`max-w-[65%] rounded-lg p-2 pt-1 shadow-sm ${
-                  message.senderId === 'current-user' 
-                    ? 'bg-[#d9fdd3] text-[#111b21]' 
-                    : 'bg-white text-[#111b21]'
-                }`}
+                key={message.id || message.tempId} 
+                className={`flex ${isSent ? 'justify-end' : 'justify-start'} mb-1 px-2`}
               >
-                {message.fileType && message.fileType.startsWith('image/') ? (
-                  <div className="mb-1">
-                    <div className="bg-[#f0f2f5] rounded p-1 inline-block">
-                      <ImageIcon className="h-32 w-32 text-[#8696a0]" />
-                    </div>
-                    <p className="text-xs text-[#8696a0] mt-1">{message.fileName}</p>
-                  </div>
-                ) : message.fileType ? (
-                  <div className="flex items-center gap-2 mb-1">
-                    <DocumentIcon className="h-5 w-5 text-[#8696a0]" />
-                    <span className="text-sm text-[#111b21]">{message.fileName}</span>
-                  </div>
-                ) : (
-                  <p className="break-words text-[15px]">{message.content}</p>
-                )}
-                <span className="text-[11px] text-[#8696a0] block text-right mt-1">
-                  {formatTime(message.timestamp)}
-                  {message.senderId === 'current-user' && (
-                    <CheckIcon className="h-3 w-3 inline ml-1 text-[#53bdeb]" />
+                <div 
+                  className={`flex items-end gap-2 ${isSent ? 'flex-row' : 'flex-row'} max-w-[65%]`}
+                >
+                  {/* Avatar for received messages (on left) */}
+                  {!isSent && (
+                    <Avatar 
+                      src={activeFriend?.avatar || undefined} 
+                      alt={activeFriend?.name || 'User'} 
+                      className="w-8 h-8 mb-1 flex-shrink-0"
+                    />
                   )}
-                </span>
+                  
+                  <div 
+                    className={`rounded-lg p-2 pt-1 pb-1 shadow-sm ${
+                      isSent 
+                        ? 'bg-[#d9fdd3] text-[#111b21] rounded-tr-none' 
+                        : 'bg-white text-[#111b21] rounded-tl-none'
+                    }`}
+                  >
+                {/* Render attachments */}
+                {message.attachments && message.attachments.length > 0 && (
+                  <div className="mb-2 space-y-2">
+                    {message.attachments.map((att) => (
+                      <div key={att.id}>
+                        {att.type === 'IMAGE' && att.url ? (
+                          <img 
+                            src={att.url} 
+                            alt={att.fileName || 'Image'} 
+                            className="max-w-full max-h-64 rounded-lg"
+                            onError={(e) => {
+                              e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ccc" width="200" height="200"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EFailed to load%3C/text%3E%3C/svg%3E';
+                            }}
+                          />
+                        ) : att.type === 'VIDEO' && att.url ? (
+                          <video 
+                            src={att.url} 
+                            controls 
+                            className="max-w-full max-h-64 rounded-lg"
+                          />
+                        ) : att.type === 'AUDIO' && att.url ? (
+                          <div className="flex items-center gap-2 p-2 bg-[#f0f2f5] rounded">
+                            <audio src={att.url} controls className="flex-1" />
+                            <span className="text-xs text-[#8696a0]">{att.fileName || 'Audio'}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 p-2 bg-[#f0f2f5] rounded">
+                            <DocumentIcon className="h-5 w-5 text-[#8696a0]" />
+                            <a 
+                              href={att.url} 
+                              download={att.fileName}
+                              className="text-sm text-[#111b21] hover:underline"
+                            >
+                              {att.fileName || 'File'}
+                            </a>
+                            <span className="text-xs text-[#8696a0]">
+                              {att.sizeBytes ? `${(att.sizeBytes / 1024).toFixed(1)} KB` : ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                    {/* Render text content */}
+                    {(message.text || message.content) && (
+                      <p className="break-words text-[15px] leading-relaxed">{message.text || message.content}</p>
+                    )}
+                    <div className={`flex items-center gap-1 mt-1 ${isSent ? 'justify-end' : 'justify-start'}`}>
+                      <span className="text-[11px] text-[#8696a0]">
+                        {formatTime(message.timestamp || message.createdAt || new Date().toISOString())}
+                      </span>
+                      {isSent && (
+                        <CheckIcon className="h-3 w-3 text-[#8696a0]" />
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Avatar for sent messages (on right side) */}
+                  {isSent && (
+                    <Avatar 
+                      src={currentUser?.avatar || undefined} 
+                      alt={currentUser?.username || 'You'} 
+                      className="w-8 h-8 mb-1 flex-shrink-0"
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Attachments preview */}
+      {attachments.length > 0 && (
+        <div className="px-4 py-2 bg-white border-t border-[#e9edef] flex gap-2 flex-wrap">
+          {attachments.map((att, index) => (
+            <div key={index} className="relative">
+              {att.type === 'image' && att.url ? (
+                <div className="relative">
+                  <img src={att.url} alt={att.fileName} className="w-20 h-20 object-cover rounded" />
+                  <button
+                    onClick={() => removeAttachment(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <div className="relative bg-[#f0f2f5] rounded p-2 w-20 h-20 flex items-center justify-center">
+                  <DocumentIcon className="h-8 w-8 text-[#8696a0]" />
+                  <button
+                    onClick={() => removeAttachment(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                  <p className="text-xs text-[#8696a0] truncate w-full absolute bottom-1 px-1">{att.fileName}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Message input */}
       <div className="p-3 bg-[#f0f2f5] border-t border-[#e9edef] flex items-center gap-2">
@@ -168,39 +537,75 @@ export function ChatBox() {
           <EmojiIcon className="h-6 w-6" />
         </button>
         
-        <button 
-          onClick={handleFileUpload} 
-          className="p-2 text-[#54656f] rounded-full hover:bg-[#e9edef]"
-        >
-          <AttachmentIcon className="h-6 w-6" />
+        <div className="relative">
+          <button 
+            onClick={handleFileUpload} 
+            disabled={uploading || attachments.length >= 4}
+            className="p-2 text-[#54656f] rounded-full hover:bg-[#e9edef] disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Attach file (max 4)"
+          >
+            <AttachmentIcon className="h-6 w-6" />
+          </button>
           <input 
             type="file" 
             ref={fileInputRef} 
             className="hidden" 
             onChange={handleFileChange}
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            multiple
+            disabled={uploading || attachments.length >= 4}
           />
+        </div>
+
+        <button
+          onMouseDown={handleStartRecording}
+          onMouseUp={handleStopRecording}
+          onTouchStart={handleStartRecording}
+          onTouchEnd={handleStopRecording}
+          disabled={uploading || isRecording}
+          className={`p-2 rounded-full ${
+            isRecording 
+              ? 'bg-red-500 text-white animate-pulse' 
+              : 'text-[#54656f] hover:bg-[#e9edef]'
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+          title="Hold to record audio"
+        >
+          <MicrophoneIcon className="h-6 w-6" />
         </button>
         
         <form onSubmit={handleSendMessage} className="flex-1 flex">
           <Input
             type="text"
-            placeholder="Type a message"
+            placeholder={uploading ? "Uploading..." : "Type a message"}
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            className="flex-1 rounded-lg bg-white border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              handleTyping();
+            }}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            disabled={uploading}
+            className="flex-1 rounded-lg bg-white border-0 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
           />
         </form>
         
         <button 
-          onClick={handleSendMessage} 
-          disabled={!newMessage.trim()} 
+          onClick={() => handleSendMessage()} 
+          disabled={(!newMessage.trim() && attachments.length === 0) || uploading} 
           className={`p-2 rounded-full ${
-            newMessage.trim() ? 'text-[#54656f] hover:bg-[#e9edef]' : 'text-[#8696a0]'
+            (newMessage.trim() || attachments.length > 0) && !uploading
+              ? 'text-[#54656f] hover:bg-[#e9edef]' 
+              : 'text-[#8696a0] cursor-not-allowed'
           }`}
         >
-          {newMessage.trim() ? (
+          {(newMessage.trim() || attachments.length > 0) && !uploading ? (
             <SendIcon className="h-6 w-6" />
+          ) : uploading ? (
+            <div className="h-6 w-6 border-2 border-[#8696a0] border-t-transparent rounded-full animate-spin" />
           ) : (
             <MicrophoneIcon className="h-6 w-6" />
           )}

@@ -5,14 +5,30 @@ export type Message = {
   id: string;
   text?: string;
   senderId: string;
-  receiverId: string;
+  receiverId?: string;
+  groupId?: string;
   createdAt: string;
-  messageType: string;
+  messageType: 'TEXT' | 'IMAGE' | 'VIDEO' | 'FILE' | 'AUDIO';
   attachments?: Array<{
     id: string;
     url: string;
-    type: string;
+    type: 'IMAGE' | 'VIDEO' | 'FILE' | 'AUDIO';
+    sizeBytes?: number;
+    width?: number;
+    height?: number;
+    durationMs?: number;
+    fileName?: string;
   }>;
+};
+
+export type AttachmentUploadResponse = {
+  url: string;
+  type: 'IMAGE' | 'VIDEO' | 'FILE' | 'AUDIO';
+  sizeBytes: number;
+  width?: number;
+  height?: number;
+  durationMs?: number;
+  fileName: string;
 };
 
 export const messageService = {
@@ -26,6 +42,22 @@ export const messageService = {
 
   async deleteMessage(messageId: string): Promise<void> {
     await api.delete(`/message/${messageId}`);
+  },
+
+  async uploadAttachment(file: File): Promise<AttachmentUploadResponse> {
+    const formData = new FormData();
+    formData.append('attachment', file);
+    
+    const response = await api.post<ApiResponse<AttachmentUploadResponse>>('/message/attachment', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    if (response.data.data) {
+      return response.data.data;
+    }
+    throw new Error(response.data.message || 'Failed to upload attachment');
   },
 };
 
