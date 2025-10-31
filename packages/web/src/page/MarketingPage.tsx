@@ -1,3 +1,5 @@
+import { Logo } from "../components/ui/Logo";
+
 export default function MarketingPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-blue-50 to-white overflow-hidden">
@@ -11,7 +13,7 @@ export default function MarketingPage() {
       {/* Navigation */}
       <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-5 border-b border-blue-100 bg-white/80 backdrop-blur-sm">
         <div className="flex items-center">
-          <span className="font-bold text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">ChatApp</span>
+          <Logo showText={true} size="lg" />
         </div>
         <div className="flex items-center gap-6">
           <a href="/auth/SignInPage" className="text-gray-700 font-medium hover:text-blue-600 transition-colors">Sign In</a>
@@ -91,7 +93,7 @@ export default function MarketingPage() {
             <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent z-10"></div>
             <img 
               src="/hero-chat-illustration.svg" 
-              alt="ChatApp Interface" 
+              alt="cnnct Interface" 
               className="max-w-4xl w-full h-auto rounded-xl shadow-2xl border border-blue-100" 
             />
           </div>
@@ -102,7 +104,7 @@ export default function MarketingPage() {
       <footer className="relative z-10 py-8 border-t border-blue-100 bg-white/50 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center">
           <div className="text-gray-500 text-sm mb-4 md:mb-0">
-            &copy; {new Date().getFullYear()} ChatApp. All rights reserved.
+            &copy; {new Date().getFullYear()} cnnct. All rights reserved.
           </div>
           <div className="flex gap-6">
             <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors text-sm">Privacy</a>

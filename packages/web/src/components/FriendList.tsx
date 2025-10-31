@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Card } from "./ui/Card";
-import { SearchBar } from "./ui/SearchBar";
 import { Avatar } from "./ui/Avatar";
 import { 
   setActiveFriend, 
@@ -167,20 +165,12 @@ export function FriendList({ refreshTrigger }: { refreshTrigger?: number }) {
   }
 
   return (
-    <Card className="p-0 h-full flex flex-col">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold mb-3 text-foreground">Chats</h2>
-        <SearchBar 
-          value={search} 
-          onChange={e => setSearch(e.target.value)} 
-          placeholder="Search chats..." 
-        />
-      </div>
+    <div className="p-0 h-full flex flex-col bg-white">
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="p-4 text-muted-foreground">Loading friends...</div>
+          <div className="p-4 text-[#667781] text-sm">Loading friends...</div>
         ) : filtered.length === 0 ? (
-          <div className="p-4 text-muted-foreground">No friends found.</div>
+          <div className="p-4 text-[#667781] text-sm">No friends found.</div>
         ) : (
           filtered.map(friend => {
             const isFriendOnline = onlineUsersSet.has(String(friend.id));
@@ -198,43 +188,43 @@ export function FriendList({ refreshTrigger }: { refreshTrigger?: number }) {
             return (
               <div 
                 key={friend.id} 
-                className={`flex items-center gap-3 px-4 py-3 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer border-b border-border/40 ${
-                  hasUnread ? 'bg-[#d9fdd3]/30 font-medium' : ''
+                className={`flex items-center gap-3 px-4 py-2.5 hover:bg-[#f5f6f6] transition-colors cursor-pointer border-b border-[#e9edef] ${
+                  isActiveChat ? 'bg-[#f0f2f5]' : ''
                 }`}
                 onClick={() => handleSelectFriend(friend)}
               >
-                <div className="relative">
-                  <Avatar src={friend.avatar || undefined} alt={friend.username} />
+                <div className="relative flex-shrink-0">
+                  <Avatar src={friend.avatar || undefined} alt={friend.username} className="w-12 h-12" />
                   {isFriendOnline && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#53bdeb] border-2 border-white rounded-full"></div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-baseline">
-                    <span className={`font-medium truncate ${hasUnread ? 'text-foreground font-semibold' : 'text-foreground'}`}>
+                  <div className="flex justify-between items-center mb-0.5">
+                    <span className={`text-[17px] truncate ${hasUnread ? 'text-[#111b21] font-semibold' : 'text-[#111b21] font-medium'}`}>
                       {friend.username}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                       {displayLastMessageTime && (
-                        <span className={`text-xs whitespace-nowrap ml-2 ${hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                        <span className={`text-xs whitespace-nowrap ${hasUnread ? 'text-[#111b21] font-medium' : 'text-[#667781]'}`}>
                           {displayLastMessageTime}
                         </span>
                       )}
                       {hasUnread && (
-                        <span className="bg-[#00a884] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-2 flex items-center justify-center">
+                        <span className="bg-[#25d366] text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
                           {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
                       )}
                     </div>
                   </div>
                   {displayLastMessage && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <p className={`text-sm truncate flex-1 ${hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {lastMsg?.senderId && String(lastMsg.senderId) === String(currentUser?.id) && (
+                        <CheckIcon className="h-4 w-4 text-[#8696a0] flex-shrink-0" />
+                      )}
+                      <p className={`text-sm truncate flex-1 ${hasUnread ? 'text-[#111b21] font-medium' : 'text-[#667781]'}`}>
                         {displayLastMessage}
                       </p>
-                      {lastMsg?.senderId && String(lastMsg.senderId) === String(currentUser?.id) && (
-                        <CheckIcon className="h-3 w-3 text-[#8696a0] flex-shrink-0" />
-                      )}
                     </div>
                   )}
                 </div>
@@ -243,6 +233,6 @@ export function FriendList({ refreshTrigger }: { refreshTrigger?: number }) {
           })
         )}
       </div>
-    </Card>
+    </div>
   );
 }

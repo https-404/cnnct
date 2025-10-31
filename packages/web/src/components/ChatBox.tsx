@@ -24,7 +24,11 @@ import { messageService } from '../services/api/message.service';
 import { ChatMessagePayload } from '../services/socket/socket.service';
 import { ImageViewerModal } from './ImageViewerModal';
 
-export function ChatBox() {
+interface ChatBoxProps {
+  onOpenContactInfo?: () => void;
+}
+
+export function ChatBox({ onOpenContactInfo }: ChatBoxProps = {}) {
   const dispatch = useDispatch();
   const activeFriend = useSelector(selectActiveFriend);
   const currentUser = useSelector((state: RootState) => selectAuthUser(state));
@@ -466,23 +470,27 @@ export function ChatBox() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#f0f2f5]">
+    <div className="flex flex-col h-full w-full bg-[#efeae2]">
       {/* Chat header */}
-      <div className="flex items-center p-3 px-4 bg-[#f0f2f5] border-b border-[#e9edef] shadow-sm h-[60px]">
-        <div className="flex items-center flex-1">
-          <Avatar src={activeFriend.avatar || undefined} alt={activeFriend.name} className="h-10 w-10" />
-          <div className="ml-4">
-            <h3 className="text-base font-medium text-[#111b21]">{activeFriend.name}</h3>
-            <p className="text-xs text-[#667781]">
+      <div className="flex items-center px-4 py-2 bg-[#f0f2f5] border-b border-[#e9edef] h-[59px] min-h-[59px]">
+        <div className="flex items-center flex-1 min-w-0">
+          <Avatar src={activeFriend.avatar || undefined} alt={activeFriend.name} className="h-10 w-10 flex-shrink-0" />
+          <div className="ml-3 flex-1 min-w-0">
+            <h3 className="text-base font-medium text-[#111b21] truncate">{activeFriend.name}</h3>
+            <p className="text-xs text-[#667781] truncate">
               {typingUsers.size > 0 ? 'typing...' : isOnline ? 'Online' : 'Offline'}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-[#54656f]">
-          <button className="p-2 rounded-full hover:bg-[#e9edef]">
+        <div className="flex items-center gap-1 text-[#54656f] flex-shrink-0 ml-2">
+          <button className="p-2 rounded-full hover:bg-[#e9edef] transition-colors">
             <SearchIcon className="h-5 w-5" />
           </button>
-          <button className="p-2 rounded-full hover:bg-[#e9edef]">
+          <button 
+            onClick={() => onOpenContactInfo?.()}
+            className="p-2 rounded-full hover:bg-[#e9edef] transition-colors"
+            title="Contact Info"
+          >
             <MoreVerticalIcon className="h-5 w-5" />
           </button>
         </div>
@@ -490,43 +498,57 @@ export function ChatBox() {
 
       {/* Messages area */}
       <div 
-        className="flex-grow overflow-y-auto p-4 space-y-2"
+        className="flex-grow overflow-y-auto py-2 px-4 space-y-1"
         style={{
-          backgroundImage: `url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAFbSURBVDiNpdQ9S1xRFMXxHyYjDiiKGLu0FhYWgp1fQbC0sbBJY2WlYGkVJJDKwk8gBGs7ESwtRYSAYGUTECIYYsIUwcQ7FjOD49X74jzZcDh3n7XXv/c++9yhWkO4xCy+4wvmcI5pDNbkdNUoPuIPLrCFKSzjHm/w1ivrqfCIP/UHSxjAM3zCX7zCk6a4dvpQHH/8jxhMYxfHGOskZKbH2McbMZ0n7OFlvdBMYXiFu3oCdIJR/MYBxjNhywXCatUjb3ErHmg5E/ahrLCsHpnDgAiupUzYAbbL6ooL/FLN5+iLLKxKQrYLhXSrJdEHuYZdq27BapvDDO7wGNuq0akmVhO2L3Io+wvHNTh/s+NezOEGZxn7uBjVc9ziFd4V/AeFbYhn+IGPDbcZ7OMbJhsObxUE3xcLzxXWb0XEbXAqJtlxuqj//yCa1B8b2BAp/Vc2xfN9Asg1Yj5B29JpAAAAAElFTkSuQmCC")`
+          backgroundImage: `url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAFbSURBVDiNpdQ9S1xRFMXxHyYjDiiKGLu0FhYWgp1fQbC0sbBJY2WlYGkVJJDKwk8gBGs7ESwtRYSAYGUTECIYYsIUwcQ7FjOD49X74jzZcDh3n7XXv/c++9yhWkO4xCy+4wvmcI5pDNbkdNUoPuIPLrCFKSzjHm/w1ivrqfCIP/UHSxjAM3zCX7zCk6a4dvpQHH/8jxhMYxfHGOskZKbH2McbMZ0n7OFlvdBMYXiFu3oCdIJR/MYBxjNhywXCatUjb3ErHmg5E/ahrLCsHpnDgAiupUzYAbbL6ooL/FLN5+iLLKxKQrYLhXSrJdEHuYZdq27BapvDDO7wGNuq0akmVhO2L3Io+wvHNTh/s+NezOEGZxn7uBjVc9ziFd4V/AeFbYhn+IGPDbcZ7OMbJhsObxUE3xcLzxXWb0XEbXAqJtlxuqj//yCa1B8b2BAp/Vc2xfN9Asg1Yj5B29JpAAAAAElFTkSuQmCC")`,
+          backgroundSize: '450px 450px'
         }}
       >
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <div className="bg-white p-6 rounded-lg shadow-sm text-center">
-              <p className="text-[#54656f] mb-2">No messages yet</p>
+            <div className="text-center">
+              <div className="bg-white rounded-full p-4 inline-block mb-4 shadow-md">
+                <svg className="w-12 h-12 text-[#54656f]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <p className="text-[#54656f] text-lg font-medium mb-1">No messages yet</p>
               <p className="text-[#8696a0] text-sm">Start the conversation with {activeFriend.name}</p>
             </div>
           </div>
         ) : (
-          messages.map((message) => {
+          messages.map((message, index) => {
             const isSent = message.senderId === currentUser?.id;
+            const prevMessage = index > 0 ? messages[index - 1] : null;
+            const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+            const showAvatar = !isSent && (!nextMessage || nextMessage.senderId !== message.senderId);
+            const isGrouped = prevMessage && prevMessage.senderId === message.senderId && 
+              new Date(message.timestamp || message.createdAt || 0).getTime() - 
+              new Date(prevMessage.timestamp || prevMessage.createdAt || 0).getTime() < 300000; // 5 minutes
+            
             return (
               <div 
                 key={message.id || message.tempId} 
-                className={`flex ${isSent ? 'justify-end' : 'justify-start'} mb-1 px-2`}
+                className={`flex ${isSent ? 'justify-end' : 'justify-start'} ${isGrouped ? 'mt-0.5' : 'mt-1'} px-1`}
               >
                 <div 
-                  className={`flex items-end gap-2 ${isSent ? 'flex-row' : 'flex-row'} max-w-[65%]`}
+                  className={`flex items-end gap-1.5 max-w-[65%] ${isSent ? 'flex-row-reverse' : 'flex-row'}`}
                 >
                   {/* Avatar for received messages (on left) */}
-                  {!isSent && (
+                  {showAvatar && (
                     <Avatar 
                       src={activeFriend?.avatar || undefined} 
                       alt={activeFriend?.name || 'User'} 
-                      className="w-8 h-8 mb-1 flex-shrink-0"
+                      className="w-7 h-7 mb-0.5 flex-shrink-0"
                     />
                   )}
+                  {!showAvatar && !isSent && <div className="w-7 flex-shrink-0" />}
                   
                   <div 
-                    className={`rounded-lg p-2 pt-1 pb-1 shadow-sm ${
+                    className={`rounded-lg px-2 py-1.5 shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] ${
                       isSent 
-                        ? 'bg-[#d9fdd3] text-[#111b21] rounded-tr-none' 
-                        : 'bg-white text-[#111b21] rounded-tl-none'
+                        ? 'bg-[#d9fdd3] text-[#111b21] rounded-br-sm' 
+                        : 'bg-white text-[#111b21] rounded-bl-sm'
                     }`}
                   >
                 {/* Render attachments */}
@@ -576,26 +598,29 @@ export function ChatBox() {
                 )}
                     {/* Render text content */}
                     {(message.text || message.content) && (
-                      <p className="break-words text-[15px] leading-relaxed">{message.text || message.content}</p>
+                      <p className="break-words text-[14.2px] leading-[19px]">{message.text || message.content}</p>
                     )}
-                    <div className={`flex items-center gap-1 mt-1 ${isSent ? 'justify-end' : 'justify-start'}`}>
-                      <span className="text-[11px] text-[#8696a0]">
+                    <div className={`flex items-center gap-1 mt-0.5 ${isSent ? 'justify-end ml-2' : 'justify-start mr-2'}`}>
+                      <span className="text-[11px] text-[#667781] whitespace-nowrap">
                         {formatTime(message.timestamp || message.createdAt || new Date().toISOString())}
                       </span>
                       {isSent && (
-                        <CheckIcon className="h-3 w-3 text-[#8696a0]" />
+                        <span className="flex items-center -mr-0.5 ml-1">
+                          <CheckIcon className="h-4 w-4 text-[#8696a0]" />
+                        </span>
                       )}
                     </div>
                   </div>
                   
-                  {/* Avatar for sent messages (on right side) */}
-                  {isSent && (
+                  {/* Avatar for sent messages (on right side) - rarely shown in WhatsApp */}
+                  {isSent && showAvatar && (
                     <Avatar 
                       src={currentUser?.avatar || undefined} 
                       alt={currentUser?.username || 'You'} 
-                      className="w-8 h-8 mb-1 flex-shrink-0"
+                      className="w-7 h-7 mb-0.5 flex-shrink-0"
                     />
                   )}
+                  {isSent && !showAvatar && <div className="w-7 flex-shrink-0" />}
                 </div>
               </div>
             );
@@ -606,25 +631,25 @@ export function ChatBox() {
 
       {/* Attachments preview */}
       {attachments.length > 0 && (
-        <div className="px-4 py-2 bg-white border-t border-[#e9edef] flex gap-2 flex-wrap">
+        <div className="px-4 py-2 bg-[#f0f2f5] border-t border-[#e9edef] flex gap-2 flex-wrap">
           {attachments.map((att, index) => (
             <div key={index} className="relative">
               {att.type === 'image' && att.url ? (
                 <div className="relative">
-                  <img src={att.url} alt={att.fileName} className="w-20 h-20 object-cover rounded" />
+                  <img src={att.url} alt={att.fileName} className="w-20 h-20 object-cover rounded-lg" />
                   <button
                     onClick={() => removeAttachment(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors shadow-sm"
                   >
                     ×
                   </button>
                 </div>
               ) : (
-                <div className="relative bg-[#f0f2f5] rounded p-2 w-20 h-20 flex items-center justify-center">
+                <div className="relative bg-white rounded-lg p-2 w-20 h-20 flex items-center justify-center border border-[#e9edef]">
                   <DocumentIcon className="h-8 w-8 text-[#8696a0]" />
                   <button
                     onClick={() => removeAttachment(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-colors shadow-sm"
                   >
                     ×
                   </button>
@@ -637,22 +662,22 @@ export function ChatBox() {
       )}
 
       {/* Message input */}
-      <div className="p-3 bg-[#f0f2f5] border-t border-[#e9edef] flex items-center gap-2">
+      <div className="px-4 py-2.5 bg-[#f0f2f5] border-t border-[#e9edef] flex items-end gap-2 min-h-[62px]">
         <button 
           onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
-          className="p-2 text-[#54656f] rounded-full hover:bg-[#e9edef]"
+          className="p-2 text-[#54656f] rounded-full hover:bg-[#e9edef] transition-colors flex-shrink-0"
         >
           <EmojiIcon className="h-6 w-6" />
         </button>
         
-        <div className="relative">
-        <button 
-          onClick={handleFileUpload} 
+        <div className="relative flex-shrink-0">
+          <button 
+            onClick={handleFileUpload} 
             disabled={uploading || attachments.length >= 4}
-            className="p-2 text-[#54656f] rounded-full hover:bg-[#e9edef] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 text-[#54656f] rounded-full hover:bg-[#e9edef] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Attach file (max 4)"
-        >
-          <AttachmentIcon className="h-6 w-6" />
+          >
+            <AttachmentIcon className="h-6 w-6" />
           </button>
           <input 
             type="file" 
@@ -665,13 +690,35 @@ export function ChatBox() {
           />
         </div>
 
+        <form onSubmit={handleSendMessage} className="flex-1 flex items-end gap-2 min-w-0">
+          <div className="flex-1 min-w-0 bg-white rounded-full px-4 py-2 flex items-center">
+            <Input
+              type="text"
+              placeholder={uploading ? "Uploading..." : "Type a message"}
+              value={newMessage}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                handleTyping();
+              }}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              disabled={uploading}
+              className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50 bg-transparent px-0 py-0 text-sm"
+            />
+          </div>
+        </form>
+        
         <button
           onMouseDown={handleStartRecording}
           onMouseUp={handleStopRecording}
           onTouchStart={handleStartRecording}
           onTouchEnd={handleStopRecording}
           disabled={uploading || isRecording}
-          className={`p-2 rounded-full ${
+          className={`p-2 rounded-full flex-shrink-0 transition-colors ${
             isRecording 
               ? 'bg-red-500 text-white animate-pulse' 
               : 'text-[#54656f] hover:bg-[#e9edef]'
@@ -681,30 +728,10 @@ export function ChatBox() {
           <MicrophoneIcon className="h-6 w-6" />
         </button>
         
-        <form onSubmit={handleSendMessage} className="flex-1 flex">
-          <Input
-            type="text"
-            placeholder={uploading ? "Uploading..." : "Type a message"}
-            value={newMessage}
-            onChange={(e) => {
-              setNewMessage(e.target.value);
-              handleTyping();
-            }}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            disabled={uploading}
-            className="flex-1 rounded-lg bg-white border-0 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
-          />
-        </form>
-        
         <button 
           onClick={() => handleSendMessage()} 
           disabled={(!newMessage.trim() && attachments.length === 0) || uploading} 
-          className={`p-2 rounded-full ${
+          className={`p-2 rounded-full flex-shrink-0 transition-colors ${
             (newMessage.trim() || attachments.length > 0) && !uploading
               ? 'text-[#54656f] hover:bg-[#e9edef]' 
               : 'text-[#8696a0] cursor-not-allowed'
@@ -834,10 +861,14 @@ function CheckIcon(props: React.SVGProps<SVGSVGElement>) {
     <svg
       {...props}
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
+      viewBox="0 0 16 15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     >
-      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+      <path d="M15 1.5l-8 8-4-4" />
     </svg>
   );
 }

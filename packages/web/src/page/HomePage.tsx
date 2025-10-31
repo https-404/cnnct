@@ -28,6 +28,13 @@ export default function HomePage() {
   const [friendListRefreshTrigger, setFriendListRefreshTrigger] = useState(0);
   const activeFriend = useSelector(selectActiveFriend);
 
+  // Close Contact Info when chat is closed
+  useEffect(() => {
+    if (!activeFriend && showContactInfo) {
+      setShowContactInfo(false);
+    }
+  }, [activeFriend, showContactInfo]);
+
   // Initialize socket connection for online status tracking
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -137,13 +144,13 @@ export default function HomePage() {
       <TopNavBar className="h-16 shadow-sm z-10" />
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Friends/Contacts with search */}
-        <aside className="w-[350px] border-r border-[#e9edef] bg-white flex flex-col">
+        <aside className="w-[360px] border-r border-[#e9edef] bg-white flex flex-col min-w-0">
           <div className="p-3 bg-[#f0f2f5] border-b border-[#e9edef]">
             <SearchBar 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
               placeholder="Search or start new chat" 
-              className="bg-white rounded-lg"
+              className="bg-white rounded-lg px-3 py-2 text-sm border-0 focus-visible:ring-0"
             />
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -154,13 +161,20 @@ export default function HomePage() {
         {/* Center: Chat area (takes all available space) */}
         <main className={`flex-1 flex bg-[#efeae2] relative ${showContactInfo || showFriendRequests ? 'border-r border-[#e9edef]' : ''}`}>
           <div 
-            className="absolute inset-0 opacity-20 pointer-events-none" 
+            className="absolute inset-0 opacity-[0.03] pointer-events-none" 
             style={{
               backgroundImage: `url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAFbSURBVDiNpdQ9S1xRFMXxHyYjDiiKGLu0FhYWgp1fQbC0sbBJY2WlYGkVJJDKwk8gBGs7ESwtRYSAYGUTECIYYsIUwcQ7FjOD49X74jzZcDh3n7XXv/c++9yhWkO4xCy+4wvmcI5pDNbkdNUoPuIPLrCFKSzjHm/w1ivrqfCIP/UHSxjAM3zCX7zCk6a4dvpQHH/8jxhMYxfHGOskZKbH2McbMZ0n7OFlvdBMYXiFu3oCdIJR/MYBxjNhywXCatUjb3ErHmg5E/ahrLCsHpnDgAiupUzYAbbL6ooL/FLN5+iLLKxKQrYLhXSrJdEHuYZdq27BapvDDO7wGNuq0akmVhO2L3Io+wvHNTh/s+NezOEGZxn7uBjVc9ziFd4V/AeFbYhn+IGPDbcZ7OMbJhsObxUE3xcLzxXWb0XEbXAqJtlxuqj//yCa1B8b2BAp/Vc2xfN9Asg1Yj5B29JpAAAAAElFTkSuQmCC")`
             }}
           ></div>
-          <div className="flex-1 flex">
-            {activeFriend ? <ChatBox /> : <ChatPlaceholder />}
+          <div className="flex-1 flex z-10">
+            {activeFriend ? (
+              <ChatBox onOpenContactInfo={() => {
+                setShowContactInfo(true);
+                setShowFriendRequests(false);
+              }} />
+            ) : (
+              <ChatPlaceholder />
+            )}
           </div>
         </main>
         
@@ -169,7 +183,7 @@ export default function HomePage() {
           <aside className="w-[320px] bg-white flex flex-col">
             <div className="p-4 border-b border-[#e9edef] flex justify-between items-center">
               <h3 className="font-semibold text-lg">
-                {showContactInfo ? "Contact Info" : "Add Friends"}
+                {showContactInfo && activeFriend ? "Contact Info" : "Add Friends"}
               </h3>
               <button 
                 onClick={() => {
@@ -197,7 +211,7 @@ export default function HomePage() {
                   
                   <div className="border-t border-[#e9edef] pt-4">
                     <h4 className="text-[#008069] uppercase text-xs font-medium mb-4">About</h4>
-                    <p className="text-[#111b21]">Hey there! I'm using ChatApp.</p>
+                    <p className="text-[#111b21]">Hey there! I'm using cnnct.</p>
                   </div>
                   
                   <div className="border-t border-[#e9edef] mt-6 pt-4">
@@ -289,15 +303,17 @@ export default function HomePage() {
             
             {/* Bottom actions */}
             <div className="p-4 border-t border-[#e9edef] flex justify-between">
-              <button 
-                onClick={() => {
-                  setShowContactInfo(!showContactInfo);
-                  setShowFriendRequests(!showFriendRequests);
-                }}
-                className="py-2 px-4 bg-[#f0f2f5] hover:bg-[#e9edef] rounded text-[#54656f] font-medium"
-              >
-                {showContactInfo ? "Show Friend Requests" : "Contact Info"}
-              </button>
+              {activeFriend && (
+                <button 
+                  onClick={() => {
+                    setShowContactInfo(!showContactInfo);
+                    setShowFriendRequests(!showFriendRequests);
+                  }}
+                  className="py-2 px-4 bg-[#f0f2f5] hover:bg-[#e9edef] rounded text-[#54656f] font-medium"
+                >
+                  {showContactInfo && activeFriend ? "Show Friend Requests" : "Contact Info"}
+                </button>
+              )}
             </div>
           </aside>
         )}

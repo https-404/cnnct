@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/button";
+import { Logo } from "./ui/Logo";
 
 export function SignInForm({ onSubmit }: { onSubmit: (data: { email: string; password: string }) => Promise<void> }) {
   const [email, setEmail] = useState("");
@@ -25,8 +26,11 @@ export function SignInForm({ onSubmit }: { onSubmit: (data: { email: string; pas
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
+          <div className="mb-4 flex justify-center">
+            <Logo showText={true} size="lg" />
+          </div>
           <h1 className="text-3xl font-bold text-primary mb-2">Welcome Back</h1>
-          <p className="text-muted-foreground">Sign in to continue to ChatApp</p>
+          <p className="text-muted-foreground">Sign in to continue to cnnct</p>
         </div>
         
         <Card className="p-6">

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/button";
+import { Logo } from "./ui/Logo";
 
 export function SignUpForm({ onSubmit }: { onSubmit: (data: { email: string; password: string; username: string }) => Promise<void> }) {
   const [email, setEmail] = useState("");
@@ -26,8 +27,11 @@ export function SignUpForm({ onSubmit }: { onSubmit: (data: { email: string; pas
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
+          <div className="mb-4 flex justify-center">
+            <Logo showText={true} size="lg" />
+          </div>
           <h1 className="text-3xl font-bold text-primary mb-2">Create an Account</h1>
-          <p className="text-muted-foreground">Join ChatApp today and connect with friends</p>
+          <p className="text-muted-foreground">Join cnnct today and connect with friends</p>
         </div>
         
         <Card className="p-6">
