@@ -62,16 +62,23 @@ export async function uploadMessageAttachment(file: MulterFile): Promise<{
   const uniqueName = `messages/${randomUUID()}${ext}`;
 
   // Upload to MinIO
-  await putBuffer(uniqueName, processedBuffer, mimeType);
-  const url = backendStorageUrl(uniqueName);
-
-  return {
-    url,
-    type: messageType,
-    sizeBytes: processedBuffer.length,
-    width,
-    height,
-    fileName,
-  };
+  try {
+    console.log('Uploading to MinIO:', uniqueName, 'Content-Type:', mimeType, 'Size:', processedBuffer.length);
+    await putBuffer(uniqueName, processedBuffer, mimeType);
+    const url = backendStorageUrl(uniqueName);
+    console.log('MinIO upload successful. URL:', url);
+    
+    return {
+      url,
+      type: messageType,
+      sizeBytes: processedBuffer.length,
+      width,
+      height,
+      fileName,
+    };
+  } catch (error) {
+    console.error('MinIO upload error:', error);
+    throw new Error(`Failed to upload file to storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 

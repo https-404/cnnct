@@ -46,6 +46,9 @@ export interface SocketCallbacks {
   onMessageError?: (error: { tempId?: string; error: string }) => void;
   onTypingStart?: (data: { userId: string; username?: string }) => void;
   onTypingStop?: (data: { userId: string }) => void;
+  onUserOnline?: (data: { userId: string }) => void;
+  onUserOffline?: (data: { userId: string }) => void;
+  onFriendsOnline?: (data: { userIds: string[] }) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: Error) => void;
@@ -74,6 +77,18 @@ export function connectSocket(callbacks: SocketCallbacks = {}): Socket {
     if (callbacks.onTypingStop) {
       socket.off('typing:stop');
       socket.on('typing:stop', callbacks.onTypingStop);
+    }
+    if (callbacks.onUserOnline) {
+      socket.off('user:online');
+      socket.on('user:online', callbacks.onUserOnline);
+    }
+    if (callbacks.onUserOffline) {
+      socket.off('user:offline');
+      socket.on('user:offline', callbacks.onUserOffline);
+    }
+    if (callbacks.onFriendsOnline) {
+      socket.off('friends:online');
+      socket.on('friends:online', callbacks.onFriendsOnline);
     }
     return socket;
   }
@@ -131,6 +146,19 @@ export function connectSocket(callbacks: SocketCallbacks = {}): Socket {
 
   socket.on('typing:stop', (data: { userId: string }) => {
     callbacks.onTypingStop?.(data);
+  });
+
+  // Online/Offline events
+  socket.on('user:online', (data: { userId: string }) => {
+    callbacks.onUserOnline?.(data);
+  });
+
+  socket.on('user:offline', (data: { userId: string }) => {
+    callbacks.onUserOffline?.(data);
+  });
+
+  socket.on('friends:online', (data: { userIds: string[] }) => {
+    callbacks.onFriendsOnline?.(data);
   });
 
   return socket;

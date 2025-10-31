@@ -5,7 +5,14 @@ import {
   selectMessages, 
   addMessage,
   setMessages,
-  updateMessage 
+  updateMessage,
+  setUserOnline,
+  setUserOffline,
+  setOnlineUsers,
+  selectIsUserOnline,
+  updateLastMessage,
+  incrementUnreadCount,
+  clearUnreadCount
 } from '../feature/chat/chatSlice';
 import { selectAuthUser } from '../feature/auth/auth.slice';
 import { Avatar } from './ui/Avatar';
@@ -15,6 +22,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { connectSocket, sendMessage, startTyping, stopTyping, ChatMessage } from '../services/socket/socket.service';
 import { messageService } from '../services/api/message.service';
 import { ChatMessagePayload } from '../services/socket/socket.service';
+import { ImageViewerModal } from './ImageViewerModal';
 
 export function ChatBox() {
   const dispatch = useDispatch();
@@ -29,6 +37,10 @@ export function ChatBox() {
   const [uploading, setUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [viewingImage, setViewingImage] = useState<{ url: string; fileName?: string } | null>(null);
+  const isOnline = useSelector((state: RootState) => 
+    selectIsUserOnline(state, activeFriend?.id)
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -73,44 +85,78 @@ export function ChatBox() {
               })) || [],
             }
           }));
+
+          // Update last message
+          dispatch(updateLastMessage({
+            friendId: chatId as string,
+            message: {
+              text: message.text,
+              timestamp: message.createdAt,
+              senderId: message.senderId,
+            }
+          }));
           
           // Scroll to bottom
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
           }, 100);
-        }
-      },
-      onMessageSent: (message: ChatMessage) => {
-        // Update optimistic message with real message
-        // This happens when we send a message - update the temp message with real data
-        if (message.tempId && activeFriend?.id) {
-          const chatId = activeFriend.id;
+        } else if (isReceivedMessage && !isFromActiveFriend) {
+          // Message received but chat is not active - increment unread count
+          const senderId = String(message.senderId);
+          dispatch(incrementUnreadCount(senderId));
           
-          // Check if message already exists by id (avoid duplicates)
-          dispatch(updateMessage({
-            friendId: chatId as string,
-            tempId: message.tempId,
+          // Update last message for this friend
+          dispatch(updateLastMessage({
+            friendId: senderId,
             message: {
-              id: message.id,
-              senderId: message.senderId,
               text: message.text,
-              content: message.text,
               timestamp: message.createdAt,
-              createdAt: message.createdAt,
-              messageType: message.messageType,
-              attachments: message.attachments?.map(att => ({
-                id: att.id,
-                url: att.url,
-                type: att.type as any,
-                sizeBytes: att.sizeBytes,
-                width: att.width,
-                height: att.height,
-                durationMs: att.durationMs,
-                fileName: att.fileName,
-              })) || [],
+              senderId: message.senderId,
             }
           }));
         }
+      },
+      onMessageSent: (message: ChatMessage) => {
+          // Update optimistic message with real message
+          // This happens when we send a message - update the temp message with real data
+          if (message.tempId && activeFriend?.id) {
+            const chatId = activeFriend.id;
+            
+            // Check if message already exists by id (avoid duplicates)
+            dispatch(updateMessage({
+              friendId: chatId as string,
+              tempId: message.tempId,
+              message: {
+                id: message.id,
+                senderId: message.senderId,
+                text: message.text,
+                content: message.text,
+                timestamp: message.createdAt,
+                createdAt: message.createdAt,
+                messageType: message.messageType,
+                attachments: message.attachments?.map(att => ({
+                  id: att.id,
+                  url: att.url,
+                  type: att.type as any,
+                  sizeBytes: att.sizeBytes,
+                  width: att.width,
+                  height: att.height,
+                  durationMs: att.durationMs,
+                  fileName: att.fileName,
+                })) || [],
+              }
+            }));
+
+            // Update last message when sending
+            dispatch(updateLastMessage({
+              friendId: chatId as string,
+              message: {
+                text: message.text,
+                timestamp: message.createdAt,
+                senderId: message.senderId,
+              }
+            }));
+          }
       },
       onMessageError: (error: { tempId?: string; error: string }) => {
         console.error('Message error:', error);
@@ -125,6 +171,15 @@ export function ChatBox() {
           newSet.delete(data.userId);
           return newSet;
         });
+      },
+      onUserOnline: (data: { userId: string }) => {
+        dispatch(setUserOnline(data.userId));
+      },
+      onUserOffline: (data: { userId: string }) => {
+        dispatch(setUserOffline(data.userId));
+      },
+      onFriendsOnline: (data: { userIds: string[] }) => {
+        dispatch(setOnlineUsers(data.userIds));
       },
       onConnect: () => {
         console.log('Socket connected for chat');
@@ -146,6 +201,9 @@ export function ChatBox() {
   // Load messages when active friend changes
   useEffect(() => {
     if (!activeFriend?.id || !currentUser?.id) return;
+
+    // Clear unread count when opening chat
+    dispatch(clearUnreadCount(activeFriend.id));
 
     const loadMessages = async () => {
       try {
@@ -181,6 +239,19 @@ export function ChatBox() {
           friendId: activeFriend.id,
           messages: sortedMessages
         }));
+
+        // Update last message
+        if (sortedMessages.length > 0) {
+          const lastMsg = sortedMessages[sortedMessages.length - 1];
+          dispatch(updateLastMessage({
+            friendId: activeFriend.id,
+            message: {
+              text: lastMsg.text,
+              timestamp: lastMsg.createdAt || lastMsg.timestamp,
+              senderId: lastMsg.senderId,
+            }
+          }));
+        }
 
         // Scroll to bottom after loading
         setTimeout(() => {
@@ -241,6 +312,16 @@ export function ChatBox() {
       message: tempMessage
     }));
 
+    // Optimistically update last message
+    dispatch(updateLastMessage({
+      friendId: activeFriend.id,
+      message: {
+        text: text || undefined,
+        timestamp: tempMessage.timestamp,
+        senderId: currentUser.id,
+      }
+    }));
+
     // Send via socket
     const payload: ChatMessagePayload = {
       text: text || undefined,
@@ -297,10 +378,12 @@ export function ChatBox() {
       });
 
       const uploadedAttachments = await Promise.all(uploadPromises);
+      console.log('Uploaded attachments:', uploadedAttachments);
       setAttachments(prev => [...prev, ...uploadedAttachments]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to upload file:', error);
-      alert('Failed to upload file. Please try again.');
+      console.error('Error details:', error.response?.data || error.message);
+      alert(`Failed to upload file: ${error.response?.data?.message || error.message || 'Please try again.'}`);
     } finally {
       setUploading(false);
       // Reset file input
@@ -391,7 +474,7 @@ export function ChatBox() {
           <div className="ml-4">
             <h3 className="text-base font-medium text-[#111b21]">{activeFriend.name}</h3>
             <p className="text-xs text-[#667781]">
-              {typingUsers.size > 0 ? 'typing...' : 'Online'}
+              {typingUsers.size > 0 ? 'typing...' : isOnline ? 'Online' : 'Offline'}
             </p>
           </div>
         </div>
@@ -455,7 +538,8 @@ export function ChatBox() {
                           <img 
                             src={att.url} 
                             alt={att.fileName || 'Image'} 
-                            className="max-w-full max-h-64 rounded-lg"
+                            className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => setViewingImage({ url: att.url, fileName: att.fileName })}
                             onError={(e) => {
                               e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ccc" width="200" height="200"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EFailed to load%3C/text%3E%3C/svg%3E';
                             }}
@@ -635,6 +719,38 @@ export function ChatBox() {
           )}
         </button>
       </div>
+
+      {/* Image Viewer Modal */}
+      <ImageViewerModal
+        isOpen={viewingImage !== null}
+        imageUrl={viewingImage?.url || ''}
+        fileName={viewingImage?.fileName}
+        onClose={() => setViewingImage(null)}
+        onDownload={async () => {
+          if (!viewingImage?.url) return;
+          
+          try {
+            // Fetch the image as a blob to handle CORS issues
+            const response = await fetch(viewingImage.url);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = viewingImage.fileName || `image-${Date.now()}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Clean up the blob URL
+            URL.revokeObjectURL(blobUrl);
+          } catch (error) {
+            console.error('Failed to download image:', error);
+            // Fallback: open in new tab if download fails
+            window.open(viewingImage.url, '_blank');
+          }
+        }}
+      />
     </div>
   );
 }
@@ -781,21 +897,3 @@ function DocumentIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function ImageIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-      <circle cx="9" cy="9" r="2" />
-      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-    </svg>
-  );
-}

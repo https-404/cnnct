@@ -37,6 +37,9 @@ interface ChatState {
   messages: Record<string | number, Message[]>;
   isLoading: boolean;
   error: string | null;
+  onlineUsers: string[]; // Array of online user IDs (for Redux serialization)
+  unreadCounts: Record<string | number, number>; // Track unread message counts per friend
+  lastMessages: Record<string | number, { text?: string; timestamp: string; senderId?: string | number }>; // Track last message per friend
 }
 
 const initialState: ChatState = {
@@ -44,6 +47,9 @@ const initialState: ChatState = {
   messages: {},
   isLoading: false,
   error: null,
+  onlineUsers: [],
+  unreadCounts: {},
+  lastMessages: {},
 };
 
 export const chatSlice = createSlice({
@@ -104,6 +110,31 @@ export const chatSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
     },
+    setUserOnline: (state, action: PayloadAction<string | number>) => {
+      const userId = String(action.payload);
+      if (!state.onlineUsers.includes(userId)) {
+        state.onlineUsers.push(userId);
+      }
+    },
+    setUserOffline: (state, action: PayloadAction<string | number>) => {
+      const userId = String(action.payload);
+      state.onlineUsers = state.onlineUsers.filter(id => id !== userId);
+    },
+    setOnlineUsers: (state, action: PayloadAction<string[] | number[]>) => {
+      state.onlineUsers = action.payload.map(id => String(id));
+    },
+    updateLastMessage: (state, action: PayloadAction<{ friendId: string | number; message: { text?: string; timestamp: string; senderId?: string | number } }>) => {
+      const { friendId, message } = action.payload;
+      state.lastMessages[friendId] = message;
+    },
+    incrementUnreadCount: (state, action: PayloadAction<string | number>) => {
+      const friendId = String(action.payload);
+      state.unreadCounts[friendId] = (state.unreadCounts[friendId] || 0) + 1;
+    },
+    clearUnreadCount: (state, action: PayloadAction<string | number>) => {
+      const friendId = String(action.payload);
+      delete state.unreadCounts[friendId];
+    },
   },
 });
 
@@ -114,7 +145,13 @@ export const {
   addMessage,
   updateMessage,
   setLoading,
-  setError
+  setError,
+  setUserOnline,
+  setUserOffline,
+  setOnlineUsers,
+  updateLastMessage,
+  incrementUnreadCount,
+  clearUnreadCount
 } = chatSlice.actions;
 
 export const selectActiveFriend = (state: RootState) => state.chat.activeFriend;
@@ -122,5 +159,12 @@ export const selectMessages = (state: RootState, friendId?: string | number) =>
   friendId && state.chat.messages[friendId] ? state.chat.messages[friendId] : [];
 export const selectChatLoading = (state: RootState) => state.chat.isLoading;
 export const selectChatError = (state: RootState) => state.chat.error;
+export const selectOnlineUsers = (state: RootState) => state.chat.onlineUsers;
+export const selectIsUserOnline = (state: RootState, userId?: string | number) => 
+  userId ? state.chat.onlineUsers.includes(String(userId)) : false;
+export const selectUnreadCount = (state: RootState, friendId?: string | number) =>
+  friendId ? (state.chat.unreadCounts[friendId] || 0) : 0;
+export const selectLastMessage = (state: RootState, friendId?: string | number) =>
+  friendId ? state.chat.lastMessages[friendId] : undefined;
 
 export default chatSlice.reducer;

@@ -1,13 +1,15 @@
 export function ChatPlaceholder() {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-      <div className="bg-accent p-6 rounded-full mb-4">
-        <ChatBubbleIcon className="h-12 w-12 text-primary" />
+    <div className="flex-1 flex items-center justify-center relative w-full">
+      <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
+        <div className="bg-accent p-6 rounded-full mb-6">
+          <ChatBubbleIcon className="h-12 w-12 text-primary" />
+        </div>
+        <h3 className="text-xl font-semibold mb-3 text-foreground">Your messages</h3>
+        <p className="text-center max-w-md text-sm px-4">
+          Select a conversation from the list to start chatting or search for a friend to begin a new conversation.
+        </p>
       </div>
-      <h3 className="text-xl font-semibold mb-2 text-foreground">Your messages</h3>
-      <p className="text-center max-w-md">
-        Select a conversation from the list to start chatting or search for a friend to begin a new conversation.
-      </p>
     </div>
   );
 }

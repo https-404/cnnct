@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { TopNavBar } from "../components/TopNavBar";
 import { FriendList } from "../components/FriendList";
 import { ChatPlaceholder } from "../components/ChatPlaceholder";
@@ -7,12 +7,17 @@ import { ChatBox } from "../components/ChatBox";
 import { RecommendedFriends } from "../components/RecommendedFriends";
 import { SearchBar } from "../components/ui/SearchBar";
 import { Avatar } from "../components/ui/Avatar";
-import { selectActiveFriend } from "../feature/chat/chatSlice";
+import { selectActiveFriend, setUserOnline, setUserOffline, setOnlineUsers } from "../feature/chat/chatSlice";
 import { requestService, FriendRequest } from "../services/api/request.service";
 import { userService } from "../services/api/user.service";
 import { User } from "../types/user.type";
+import { connectSocket } from "../services/socket/socket.service";
+import { selectAuthUser } from "../feature/auth/auth.slice";
+import { RootState } from "../store";
 
 export default function HomePage() {
+  const dispatch = useDispatch();
+  const currentUser = useSelector((state: RootState) => selectAuthUser(state));
   const [search, setSearch] = useState("");
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [showFriendRequests, setShowFriendRequests] = useState(true);
@@ -22,6 +27,24 @@ export default function HomePage() {
   const [searching, setSearching] = useState(false);
   const [friendListRefreshTrigger, setFriendListRefreshTrigger] = useState(0);
   const activeFriend = useSelector(selectActiveFriend);
+
+  // Initialize socket connection for online status tracking
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    // Initialize socket connection at app level for online status
+    connectSocket({
+      onUserOnline: (data: { userId: string }) => {
+        dispatch(setUserOnline(data.userId));
+      },
+      onUserOffline: (data: { userId: string }) => {
+        dispatch(setUserOffline(data.userId));
+      },
+      onFriendsOnline: (data: { userIds: string[] }) => {
+        dispatch(setOnlineUsers(data.userIds));
+      },
+    });
+  }, [currentUser?.id, dispatch]);
 
   // Fetch friend requests on mount
   useEffect(() => {
