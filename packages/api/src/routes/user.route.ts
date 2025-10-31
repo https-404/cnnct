@@ -1,10 +1,12 @@
 import { Router } from "express";
-import { uploadProfilePictureController, getCurrentUserController, updateCurrentUserController } from "../controllers/user.controller";
+import { uploadProfilePictureController, getCurrentUserController, updateCurrentUserController, searchUsersController } from "../controllers/user.controller";
+import { authenticateToken } from "../middleware/auth.middleware";
 import multer from "multer";
 
 const userRouter: Router = Router();
-userRouter.get("/me", getCurrentUserController);
-userRouter.patch("/me", updateCurrentUserController);
+userRouter.get("/me", authenticateToken, getCurrentUserController);
+userRouter.patch("/me", authenticateToken, updateCurrentUserController);
+userRouter.get("/search", authenticateToken, searchUsersController);
 
 const uploadFile = multer({
   storage: multer.memoryStorage(),
@@ -13,6 +15,7 @@ const uploadFile = multer({
 
 userRouter.post(
   "/profile-picture",
+  authenticateToken,
   uploadFile.single("profilePicture"),
   uploadProfilePictureController
 );

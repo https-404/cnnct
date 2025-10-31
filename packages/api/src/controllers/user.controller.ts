@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { uploadProfilePicture, getCurrentUser, updateCurrentUser } from "../services/user.service";
+import { uploadProfilePicture, getCurrentUser, updateCurrentUser, searchUsers } from "../services/user.service";
 import { ApiResponse } from "../util/response.util";
 
 export const uploadProfilePictureController = async (req: Request, res: Response) => {
@@ -54,6 +54,26 @@ export const updateCurrentUserController = async (req: Request, res: Response) =
     } else if (error?.code === 'P2002' && error?.meta?.target?.includes('email')) {
       message = 'Email already exists';
     } else if (error instanceof Error) {
+      message = error.message;
+    }
+    return ApiResponse(res, 500, message);
+  }
+};
+
+export const searchUsersController = async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) return ApiResponse(res, 401, "Unauthorized");
+  
+  const { q } = req.query;
+  const query = typeof q === 'string' ? q : '';
+  const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit) : 20;
+
+  try {
+    const users = await searchUsers(userId, query, limit);
+    return ApiResponse(res, 200, "Users found", users);
+  } catch (error: any) {
+    let message = 'Failed to search users';
+    if (error instanceof Error) {
       message = error.message;
     }
     return ApiResponse(res, 500, message);

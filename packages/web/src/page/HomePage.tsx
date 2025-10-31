@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { TopNavBar } from "../components/TopNavBar";
 import { FriendList } from "../components/FriendList";
@@ -7,12 +7,80 @@ import { ChatBox } from "../components/ChatBox";
 import { RecommendedFriends } from "../components/RecommendedFriends";
 import { SearchBar } from "../components/ui/SearchBar";
 import { selectActiveFriend } from "../feature/chat/chatSlice";
+import { requestService, FriendRequest } from "../services/api/request.service";
+import { userService } from "../services/api/user.service";
+import { User } from "../types/user.type";
 
 export default function HomePage() {
   const [search, setSearch] = useState("");
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [showFriendRequests, setShowFriendRequests] = useState(true);
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [searching, setSearching] = useState(false);
   const activeFriend = useSelector(selectActiveFriend);
+
+  // Fetch friend requests on mount
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const response = await requestService.getRequests();
+        setFriendRequests(response.received || []);
+      } catch (error) {
+        console.error("Failed to fetch friend requests:", error);
+      }
+    };
+    fetchRequests();
+  }, []);
+
+  // Handle user search
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    try {
+      setSearching(true);
+      const results = await userService.searchUsers(searchQuery);
+      setSearchResults(results);
+    } catch (error) {
+      console.error("Failed to search users:", error);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Handle friend request actions
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      await requestService.acceptRequest(requestId);
+      setFriendRequests(prev => prev.filter(r => r.id !== requestId));
+    } catch (error) {
+      console.error("Failed to accept request:", error);
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    try {
+      await requestService.rejectRequest(requestId);
+      setFriendRequests(prev => prev.filter(r => r.id !== requestId));
+    } catch (error) {
+      console.error("Failed to reject request:", error);
+    }
+  };
+
+  // Format time ago
+  const formatTimeAgo = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffHours < 1) return "Just now";
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return "1d ago";
+    return `${diffDays}d ago`;
+  };
   
   return (
     <div className="h-screen flex flex-col bg-[#f0f2f5]">
@@ -113,30 +181,53 @@ export default function HomePage() {
                       <input 
                         type="text" 
                         placeholder="Search by username or email" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                         className="w-full py-2 px-4 pr-10 rounded-md border border-[#e9edef] focus:outline-none focus:ring-1 focus:ring-[#00a884]"
                       />
-                      <button className="absolute right-3 top-1/2 -translate-y-1/2 text-[#54656f]">
+                      <button 
+                        onClick={handleSearch}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#54656f]"
+                      >
                         <SearchIcon className="h-5 w-5" />
                       </button>
                     </div>
-                    <button className="w-full mt-3 py-2 bg-[#00a884] text-white rounded-md font-medium">
-                      Search
+                    <button 
+                      onClick={handleSearch}
+                      disabled={searching}
+                      className="w-full mt-3 py-2 bg-[#00a884] text-white rounded-md font-medium disabled:opacity-50"
+                    >
+                      {searching ? "Searching..." : "Search"}
                     </button>
+                    
+                    {/* Search Results */}
+                    {searchResults.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        {searchResults.map(user => (
+                          <SearchResultItem key={user.id} user={user} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                   
                   <div className="mb-6">
                     <h4 className="text-[#008069] uppercase text-xs font-medium mb-3">Friend Requests</h4>
                     <div className="space-y-2">
-                      <FriendRequestItem 
-                        name="Alex Johnson" 
-                        time="2h ago" 
-                        avatar="https://via.placeholder.com/150"
-                      />
-                      <FriendRequestItem 
-                        name="Emma Wilson" 
-                        time="1d ago" 
-                        avatar="https://via.placeholder.com/150"
-                      />
+                      {friendRequests.length === 0 ? (
+                        <p className="text-sm text-[#667781] py-2">No pending requests</p>
+                      ) : (
+                        friendRequests.map(request => (
+                          <FriendRequestItem 
+                            key={request.id}
+                            name={request.requester?.username || "Unknown"}
+                            time={formatTimeAgo(request.createdAt)}
+                            avatar={request.requester?.avatar || undefined}
+                            onAccept={() => handleAcceptRequest(request.id)}
+                            onReject={() => handleRejectRequest(request.id)}
+                          />
+                        ))
+                      )}
                     </div>
                   </div>
                   
@@ -178,22 +269,78 @@ export default function HomePage() {
 }
 
 // Friend Request Item Component
-function FriendRequestItem({ name, time, avatar }: { name: string; time: string; avatar: string }) {
+function FriendRequestItem({ 
+  name, 
+  time, 
+  avatar, 
+  onAccept, 
+  onReject 
+}: { 
+  name: string; 
+  time: string; 
+  avatar?: string;
+  onAccept?: () => void;
+  onReject?: () => void;
+}) {
   return (
     <div className="flex items-center p-3 rounded-lg hover:bg-[#f0f2f5]">
-      <img src={avatar} alt={name} className="w-12 h-12 rounded-full mr-3" />
+      <img 
+        src={avatar || "https://via.placeholder.com/150"} 
+        alt={name} 
+        className="w-12 h-12 rounded-full mr-3" 
+      />
       <div className="flex-1">
         <h4 className="font-medium text-[#111b21]">{name}</h4>
         <p className="text-sm text-[#667781]">{time}</p>
       </div>
       <div className="flex gap-2">
-        <button className="p-2 rounded-full bg-[#00a884] text-white">
+        <button 
+          onClick={onAccept}
+          className="p-2 rounded-full bg-[#00a884] text-white hover:bg-[#008069] transition-colors"
+        >
           <CheckIcon className="h-5 w-5" />
         </button>
-        <button className="p-2 rounded-full bg-[#f0f2f5] text-[#54656f]">
+        <button 
+          onClick={onReject}
+          className="p-2 rounded-full bg-[#f0f2f5] text-[#54656f] hover:bg-[#e9edef] transition-colors"
+        >
           <XIcon className="h-5 w-5" />
         </button>
       </div>
+    </div>
+  );
+}
+
+// Search Result Item Component
+function SearchResultItem({ user }: { user: User }) {
+  const handleAddFriend = async () => {
+    try {
+      await requestService.sendRequest(user.id);
+      // Show success - you might want to add a toast notification here
+      alert("Friend request sent!");
+    } catch (error: any) {
+      console.error("Failed to send friend request:", error);
+      alert(error.message || "Failed to send friend request");
+    }
+  };
+
+  return (
+    <div className="flex items-center p-3 rounded-lg hover:bg-[#f0f2f5] border border-[#e9edef]">
+      <img 
+        src={user.avatar || "https://via.placeholder.com/150"} 
+        alt={user.username} 
+        className="w-10 h-10 rounded-full mr-3" 
+      />
+      <div className="flex-1">
+        <h4 className="font-medium text-[#111b21]">{user.username}</h4>
+        {user.email && <p className="text-xs text-[#667781]">{user.email}</p>}
+      </div>
+      <button 
+        onClick={handleAddFriend}
+        className="px-3 py-1 bg-[#00a884] text-white rounded-md text-sm hover:bg-[#008069] transition-colors"
+      >
+        Add
+      </button>
     </div>
   );
 }
