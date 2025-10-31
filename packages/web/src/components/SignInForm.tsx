@@ -4,16 +4,21 @@ import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/button";
 
-export function SignInForm({ onSubmit }: { onSubmit: (data: { email: string; password: string }) => void }) {
+export function SignInForm({ onSubmit }: { onSubmit: (data: { email: string; password: string }) => Promise<void> }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    onSubmit({ email, password });
-    setLoading(false);
+    try {
+      await onSubmit({ email, password });
+    } catch (error) {
+      // Error is handled in the parent component
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

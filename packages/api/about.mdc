@@ -1,3 +1,69 @@
+---
+alwaysApply: true
+---
+
+# About MDC
+# This file defines the coding standards, architectural guidelines, and AI/agentic preferences for this backend API.
+# It is designed for use with Cursor, Copilot, and other agentic AI tools.
+
+[project]
+name = "chat-app-api"
+description = "Backend API for chat-app, following clean architecture and agentic AI best practices."
+authors = ["Your Team Name"]
+
+[architecture]
+style = "Clean Architecture"
+layering = ["controllers", "services", "DTOs", "middleware", "routes", "lib", "types", "util"]
+principles = ["Separation of concerns", "Single responsibility", "Explicit DTOs", "Service abstraction", "Middleware for cross-cutting concerns"]
+
+[ai]
+agentic = true
+copilot = true
+cursor = true
+recommendations = [
+  "Write pure functions where possible",
+  "Prefer async/await for all IO",
+  "Use DTOs for all input/output",
+  "Keep controllers thin, delegate to services",
+  "Validate all inputs in middleware",
+  "Return consistent API responses"
+]
+
+[style]
+indent = 2
+semi = true
+single_quote = true
+trailing_comma = "all"
+print_width = 100
+arrow_parens = "always"
+end_of_line = "lf"
+
+[limits]
+max_function_length = 60
+max_file_length = 400
+max_params = 5
+
+[naming]
+convention = "camelCase"
+file_convention = "kebab-case"
+
+[imports]
+sort = true
+no_unused = true
+
+[lint]
+no_console = "warn"
+no_magic_numbers = [2, 5, 10, 100]
+prefer_const = true
+
+[testing]
+framework = "jest"
+coverage = 80
+
+[documentation]
+require_jsdoc = true
+
+# End of about.mdc
 # About MDC
 # This file defines the coding standards, architectural guidelines, and AI/agentic preferences for this backend API.
 # It is designed for use with Cursor, Copilot, and other agentic AI tools.

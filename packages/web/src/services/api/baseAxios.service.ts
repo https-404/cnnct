@@ -1,12 +1,11 @@
 import axios from 'axios';
 import { getAccessToken } from '../token';
-import * as dotenv from 'dotenv'
 import refreshToken from './refreshtoken.service';
 
-dotenv.config();
-
 const api = axios.create({
-  baseURL: process.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_API_URL 
+    ? `${import.meta.env.VITE_API_URL}/api` 
+    : 'http://localhost:3000/api',
 });
 
 api.interceptors.request.use((config) => {

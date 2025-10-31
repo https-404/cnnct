@@ -1,15 +1,29 @@
 import { getRefreshToken, setAccessToken, setRefreshToken } from "../token";
 import api from "./baseAxios.service";
+import { ApiResponse } from "@/types/api-response.type";
 
-const refreshToken = async (): Promise<string> => {
-  const response = await api.post("/auth/refresh", {
-    token: getRefreshToken(),
+type RefreshTokenResponse = {
+  accessToken: string;
+  refreshToken: string;
+};
+
+const refreshToken = async (): Promise<void> => {
+  const refreshTokenValue = getRefreshToken();
+  if (!refreshTokenValue) {
+    throw new Error("No refresh token available");
+  }
+
+  const response = await api.post<ApiResponse<RefreshTokenResponse>>("/auth/refresh", {
+    refreshToken: refreshTokenValue,
   });
-   if(response.data?.token) {
-    setAccessToken(response.data.access_token);
-    setRefreshToken(response.data.refresh_token);
-   }
-   throw new Error("Failed to refresh token");
+  
+  if (response.data?.data) {
+    setAccessToken(response.data.data.accessToken);
+    setRefreshToken(response.data.data.refreshToken);
+    return;
+  }
+  
+  throw new Error("Failed to refresh token");
 };
 
 export default refreshToken;
