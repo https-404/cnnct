@@ -12,7 +12,7 @@ import { Avatar } from './ui/Avatar';
 import { Input } from './ui/Input';
 import { RootState } from '../store';
 import { v4 as uuidv4 } from 'uuid';
-import { connectSocket, sendMessage, startTyping, stopTyping, disconnectSocket, ChatMessage } from '../services/socket/socket.service';
+import { connectSocket, sendMessage, startTyping, stopTyping, ChatMessage } from '../services/socket/socket.service';
 import { messageService } from '../services/api/message.service';
 import { ChatMessagePayload } from '../services/socket/socket.service';
 
@@ -35,17 +35,24 @@ export function ChatBox() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // Initialize socket connection
+  // Initialize socket connection (only once)
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    connectSocket({
+    // Update socket callbacks when activeFriend changes
+    const socketCallbacks = {
       onMessage: (message: ChatMessage) => {
-        // Handle received message
-        const friendId = message.receiverId || message.groupId;
-        if (friendId === activeFriend?.id || message.groupId) {
+        // Handle received message - only for messages where current user is the receiver
+        // Don't handle messages where current user is the sender (those are handled via message:sent)
+        const isReceivedMessage = message.receiverId === currentUser.id;
+        const isFromActiveFriend = message.senderId === activeFriend?.id;
+        
+        // Only add if we received it (not sent by us) and it's from active friend
+        if (isReceivedMessage && isFromActiveFriend && activeFriend?.id) {
+          const chatId = activeFriend.id;
+          
           dispatch(addMessage({
-            friendId: friendId || activeFriend?.id || '',
+            friendId: chatId as string,
             message: {
               id: message.id,
               senderId: message.senderId,
@@ -63,7 +70,7 @@ export function ChatBox() {
                 height: att.height,
                 durationMs: att.durationMs,
                 fileName: att.fileName,
-              })),
+              })) || [],
             }
           }));
           
@@ -75,9 +82,13 @@ export function ChatBox() {
       },
       onMessageSent: (message: ChatMessage) => {
         // Update optimistic message with real message
-        if (message.tempId) {
+        // This happens when we send a message - update the temp message with real data
+        if (message.tempId && activeFriend?.id) {
+          const chatId = activeFriend.id;
+          
+          // Check if message already exists by id (avoid duplicates)
           dispatch(updateMessage({
-            friendId: message.receiverId || message.groupId || '',
+            friendId: chatId as string,
             tempId: message.tempId,
             message: {
               id: message.id,
@@ -96,19 +107,19 @@ export function ChatBox() {
                 height: att.height,
                 durationMs: att.durationMs,
                 fileName: att.fileName,
-              })),
+              })) || [],
             }
           }));
         }
       },
-      onMessageError: (error) => {
+      onMessageError: (error: { tempId?: string; error: string }) => {
         console.error('Message error:', error);
         // Could show error notification here
       },
-      onTypingStart: (data) => {
+      onTypingStart: (data: { userId: string; username?: string }) => {
         setTypingUsers(prev => new Set(prev).add(data.userId));
       },
-      onTypingStop: (data) => {
+      onTypingStop: (data: { userId: string }) => {
         setTypingUsers(prev => {
           const newSet = new Set(prev);
           newSet.delete(data.userId);
@@ -121,12 +132,16 @@ export function ChatBox() {
       onDisconnect: () => {
         console.log('Socket disconnected');
       },
-    });
-
-    return () => {
-      disconnectSocket();
     };
-  }, [currentUser?.id, dispatch]);
+
+    // Connect socket and update callbacks if already connected
+    connectSocket(socketCallbacks);
+
+    // Don't disconnect on unmount - keep connection alive
+    // return () => {
+    //   disconnectSocket();
+    // };
+  }, [currentUser?.id, activeFriend?.id, dispatch]); // Include activeFriend to update callbacks when chat changes
 
   // Load messages when active friend changes
   useEffect(() => {
@@ -135,9 +150,9 @@ export function ChatBox() {
     const loadMessages = async () => {
       try {
         const loadedMessages = await messageService.getMessages(activeFriend.id as string);
-        dispatch(setMessages({
-          friendId: activeFriend.id,
-          messages: loadedMessages.map(msg => ({
+        // Sort messages before setting
+        const sortedMessages = loadedMessages
+          .map(msg => ({
             id: msg.id,
             senderId: msg.senderId,
             text: msg.text,
@@ -154,8 +169,17 @@ export function ChatBox() {
               height: att.height,
               durationMs: att.durationMs,
               fileName: att.fileName,
-            })),
+            })) || [],
           }))
+          .sort((a, b) => {
+            const timeA = new Date(a.timestamp || a.createdAt || 0).getTime();
+            const timeB = new Date(b.timestamp || b.createdAt || 0).getTime();
+            return timeA - timeB;
+          });
+        
+        dispatch(setMessages({
+          friendId: activeFriend.id,
+          messages: sortedMessages
         }));
 
         // Scroll to bottom after loading
@@ -212,8 +236,8 @@ export function ChatBox() {
     };
 
     // Optimistically add message
-    dispatch(addMessage({
-      friendId: activeFriend.id,
+    dispatch(addMessage({ 
+      friendId: activeFriend.id, 
       message: tempMessage
     }));
 
@@ -250,11 +274,11 @@ export function ChatBox() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
-
+  
   const handleFileUpload = () => {
     fileInputRef.current?.click();
   };
-
+  
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -460,9 +484,9 @@ export function ChatBox() {
                             <span className="text-xs text-[#8696a0]">
                               {att.sizeBytes ? `${(att.sizeBytes / 1024).toFixed(1)} KB` : ''}
                             </span>
-                          </div>
+                    </div>
                         )}
-                      </div>
+                  </div>
                     ))}
                   </div>
                 )}
@@ -538,13 +562,13 @@ export function ChatBox() {
         </button>
         
         <div className="relative">
-          <button 
-            onClick={handleFileUpload} 
+        <button 
+          onClick={handleFileUpload} 
             disabled={uploading || attachments.length >= 4}
             className="p-2 text-[#54656f] rounded-full hover:bg-[#e9edef] disabled:opacity-50 disabled:cursor-not-allowed"
             title="Attach file (max 4)"
-          >
-            <AttachmentIcon className="h-6 w-6" />
+        >
+          <AttachmentIcon className="h-6 w-6" />
           </button>
           <input 
             type="file" 

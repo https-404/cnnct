@@ -58,7 +58,13 @@ export const chatSlice = createSlice({
     },
     setMessages: (state, action: PayloadAction<{ friendId: string | number, messages: Message[] }>) => {
       const { friendId, messages } = action.payload;
-      state.messages[friendId] = messages;
+      // Sort messages by timestamp when setting
+      const sortedMessages = [...messages].sort((a, b) => {
+        const timeA = new Date(a.timestamp || a.createdAt || 0).getTime();
+        const timeB = new Date(b.timestamp || b.createdAt || 0).getTime();
+        return timeA - timeB;
+      });
+      state.messages[friendId] = sortedMessages;
     },
     addMessage: (state, action: PayloadAction<{ friendId: string | number, message: Message }>) => {
       const { friendId, message } = action.payload;
@@ -83,6 +89,12 @@ export const chatSlice = createSlice({
         const index = state.messages[friendId].findIndex(m => m.tempId === tempId);
         if (index !== -1) {
           state.messages[friendId][index] = { ...state.messages[friendId][index], ...message, tempId: undefined };
+          // Re-sort after update to maintain chronological order
+          state.messages[friendId].sort((a, b) => {
+            const timeA = new Date(a.timestamp || a.createdAt || 0).getTime();
+            const timeB = new Date(b.timestamp || b.createdAt || 0).getTime();
+            return timeA - timeB;
+          });
         }
       }
     },

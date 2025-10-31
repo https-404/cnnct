@@ -52,7 +52,29 @@ export interface SocketCallbacks {
 }
 
 export function connectSocket(callbacks: SocketCallbacks = {}): Socket {
+  // If socket exists and is connected, just update callbacks
   if (socket?.connected) {
+    // Update existing event listeners if socket is already connected
+    if (callbacks.onMessage) {
+      socket.off('message:receive');
+      socket.on('message:receive', callbacks.onMessage);
+    }
+    if (callbacks.onMessageSent) {
+      socket.off('message:sent');
+      socket.on('message:sent', callbacks.onMessageSent);
+    }
+    if (callbacks.onMessageError) {
+      socket.off('message:error');
+      socket.on('message:error', callbacks.onMessageError);
+    }
+    if (callbacks.onTypingStart) {
+      socket.off('typing:start');
+      socket.on('typing:start', callbacks.onTypingStart);
+    }
+    if (callbacks.onTypingStop) {
+      socket.off('typing:stop');
+      socket.on('typing:stop', callbacks.onTypingStop);
+    }
     return socket;
   }
 

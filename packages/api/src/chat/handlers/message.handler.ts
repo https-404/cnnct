@@ -71,13 +71,16 @@ export function registerMessageHandlers(io: Server, socket: Socket) {
         });
         recipientIds = [payload.receiverId];
         
-        // Emit to receiver
+        // Emit to receiver only (they should see it instantly)
+        // Don't emit to sender via message:receive - sender already has optimistic message
+        // and will get it updated via message:sent event
         io.to(payload.receiverId).emit("message:receive", message);
       } else {
         throw new Error("Either receiverId or groupId must be provided");
       }
 
-      // Send confirmation to sender
+      // Send confirmation to sender with tempId for optimistic updates
+      // This updates the optimistic message with the real message data
       socket.emit("message:sent", { ...message, tempId: payload.tempId });
       callback && callback({ success: true, message });
     } catch (error: any) {
